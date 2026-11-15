@@ -62,35 +62,51 @@ jobs:
         working-directory: shell
         run: python3 ../configure_android.py
 
-      - name: Постоянная подпись (обновления ставятся поверх)
+      - name: Ключ подписи (постоянный, из секретов репозитория)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        working-directory: shell
         run: |
-          mkdir -p ~/.android
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
-            echo "Использован ключ подписи из KEYSTORE_BASE64"
-          elif [ -f signing/debug.keystore ]; then
-            cp signing/debug.keystore ~/.android/debug.keystore
-            echo "Использован постоянный ключ signing/debug.keystore"
-          elif [ -f debug.keystore ]; then
-            cp debug.keystore ~/.android/debug.keystore
-            echo "Использован постоянный ключ debug.keystore"
-          else
-            echo "::warning::debug.keystore не найден, будет создан новый ключ"
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Не заданы секреты KEYSTORE_BASE64 и KEYSTORE_PASSWORD (Settings → Secrets and variables → Actions)"
+            exit 1
           fi
+          mkdir -p "$RUNNER_TEMP/sign"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/sign/zadacho-release.jks"
+          KEYSTORE_FILE="$RUNNER_TEMP/sign/zadacho-release.jks" python3 ../configure_signing.py
 
       - name: Сборка APK
         working-directory: shell
         run: flutter build apk --release --build-number=${{ github.run_number }} --build-name=1.0.${{ github.run_number }}
 
+      - name: Сборка AAB (для RuStore и Google Play)
+        working-directory: shell
+        run: flutter build appbundle --release --build-number=${{ github.run_number }} --build-name=1.0.${{ github.run_number }}
+
       - name: Переименование
-        run: cp shell/build/app/outputs/flutter-apk/app-release.apk ZadaCho.apk
+        run: |
+          cp shell/build/app/outputs/flutter-apk/app-release.apk ZadaCho.apk
+          cp shell/build/app/outputs/bundle/release/app-release.aab ZadaCho.aab
+
+      - name: Проверка подписи
+        run: |
+          AS=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$AS" verify --print-certs ZadaCho.apk | tee cert.txt
+          if grep -qi "Android Debug" cert.txt; then
+            echo "::error::APK подписан отладочным ключом, а не релизным"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: ZadaCho-apk
           path: ZadaCho.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZadaCho-aab
+          path: ZadaCho.aab
 
       - name: Публикация в Releases
         uses: softprops/action-gh-release@v2
