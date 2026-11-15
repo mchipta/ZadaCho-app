@@ -1,0 +1,775 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'api.dart';
+import 'models.dart';
+import 'theme.dart';
+import 'util.dart';
+import 'widgets.dart';
+
+class S extends ChangeNotifier {
+  static final S i = S._();
+  S._();
+
+  static const MethodChannel _notifyCh = MethodChannel('ru.zadacho.app/notify');
+  static int _lastVib = 0;
+
+  /// Лёгкая тактильная вибрация при нажатиях и переключениях (и чуть выразительнее на сердечке)
+  static void vibrate([bool strong = false]) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (!strong && now - _lastVib < 35) return;
+    _lastVib = now;
+    if (strong) {
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.lightImpact();
+    }
+    try {
+      _notifyCh.invokeMethod('haptic', strong);
+    } catch (_) {}
+  }
+
+  late SharedPreferences prefs;
+  Map<String, dynamic>? user;
+  List<Ad> ads = [];
+  bool loading = false;
+  String? loadError;
+  ThemeMode themeMode = ThemeMode.dark;
+  int accentIdx = 0;
+  String phonePrivacy = 'all'; // all, reply, chat
+  Map<String, bool> notifTypes = {'msg': true, 'reply': true, 'ss': true, 'rev': true};
+  bool dndOn = false;
+  bool regionAsked = false; // шторку «Где вы ищете?» за запуск показываем один раз
+  String dndFrom = '22:00';
+  String dndTo = '08:00';
+  int tab = 0;
+  // корневая вкладка: у вошедшего «Главной» нет, ею служит «Поиск»
+  int get rootTab => logged ? 1 : 0;
+  int cabTick = 0;
+  int msgTick = 0;
+  // на значке «Сообщения» — число диалогов с непрочитанным (как у Авито), а не число сообщений
+  int unread = 0;
+  int _msgs = 0; // всего непрочитанных сообщений (по данным сервера)
+  int _dlgs = 0; // из них диалогов
+  bool messagesOpen = false;
+  bool messageNotificationsEnabled = true;
+  // прозрачная плавающая нижняя панель: контент виден сквозь неё, как в Telegram
+  bool navTransparent = true;
+  // вид списка объявлений: 0 список, 1 плитка, 2 компактно
+  int feedMode = 0;
+  bool chatQuickSuggestionsEnabled = true;
+  String timeZone = '';
+  VoidCallback? openMessages;
+  // экран «Разместить»: системная «назад» сначала возвращает на прошлый шаг формы
+  bool Function()? postBack;
+  Set<String> fav = {};
+  Map<String, String> mutedChats = {};
+  Map<String, String> blockedUsers = {};
+  List<Map<String, String>> ss = [];
+  Map<String, String>? pendingSearch;
+  String cid = '';
+  int lastPushTs = 0;
+  String? updateTag;
+  String? updateUrl;
+  String? updateName;
+  Timer? _timer;
+  bool _unreadInit = false;
+  int chatOpen = 0;
+  static final msgKey = GlobalKey<ScaffoldMessengerState>();
+  // аватарки авторов (по pid), чтобы не запрашивать профиль заново
+  static final Map<String, String> avatarCache = {};
+
+  static Future<void> init() async {
+    final p = await SharedPreferences.getInstance();
+    i.prefs = p;
+    final u = p.getString('user');
+    if (u != null) {
+      try {
+        i.user = Map<String, dynamic>.from(jsonDecode(u) as Map);
+        Api.token = i.user!['t'] as String?;
+        i.tab = 1; // у вошедшего вкладки «Главная» нет, стартуем с поиска
+      } catch (_) {
+        i.user = null;
+      }
+    }
+    i.messageNotificationsEnabled = p.getBool('messages_notifications') ?? true;
+    i.navTransparent = p.getBool('nav_transparent') ?? true;
+    i.feedMode = (p.getInt('feed_mode') ?? 0).clamp(0, 2).toInt();
+    i.accentIdx = (p.getInt('accent_idx') ?? 0).clamp(0, Pal.accents.length - 1).toInt();
+    Pal.accentIndex = i.accentIdx;
+    i.phonePrivacy = p.getString('phone_privacy') ?? 'all';
+    i.dndOn = p.getBool('dnd_on') ?? false;
+    i.dndFrom = p.getString('dnd_from') ?? '22:00';
+    i.dndTo = p.getString('dnd_to') ?? '08:00';
+    final ntRaw = p.getString('notif_types');
+    if (ntRaw != null) {
+      try {
+        final m = Map<String, dynamic>.from(jsonDecode(ntRaw) as Map);
+        i.notifTypes = {
+          'msg': m['msg'] != false,
+          'reply': m['reply'] != false,
+          'ss': m['ss'] != false,
+          'rev': m['rev'] != false,
+        };
+      } catch (_) {}
+    }
+    applyEdgeToEdge(true); // панель всегда плавающая, вокруг неё ничего нет
+    i.chatQuickSuggestionsEnabled = p.getBool('chat_quick_suggestions') ?? true;
+    i.timeZone = p.getString('timezone') ?? '';
+    i.lastPushTs = p.getInt('last_push_ts') ?? DateTime.now().millisecondsSinceEpoch;
+    if (!p.containsKey('last_push_ts')) {
+      await p.setInt('last_push_ts', i.lastPushTs);
+    }
+    final tm = p.getString('theme') ?? 'dark';
+    i.themeMode = tm == 'light'
+        ? ThemeMode.light
+        : tm == 'system'
+            ? ThemeMode.system
+            : ThemeMode.dark;
+    var c = p.getString('cid');
+    if (c == null || c.isEmpty) {
+      final r = Random();
+      c = List.generate(16, (_) => r.nextInt(16).toRadixString(16)).join();
+      await p.setString('cid', c);
+    }
+    i.cid = c;
+    final fl = p.getStringList('fav');
+    if (fl != null) i.fav = fl.toSet();
+    final muted = p.getString('muted_chats');
+    if (muted != null) {
+      try {
+        i.mutedChats = Map<String, String>.from(jsonDecode(muted) as Map);
+      } catch (_) {}
+    }
+    final bl = p.getString('blocked_users');
+    if (bl != null) {
+      try {
+        i.blockedUsers = Map<String, String>.from(jsonDecode(bl) as Map);
+      } catch (_) {}
+    }
+    final sj = p.getString('ss');
+    if (sj != null) {
+      try {
+        i.ss = (jsonDecode(sj) as List).map((e) => Map<String, String>.from(e as Map)).toList();
+      } catch (_) {}
+    }
+    final cached = p.getString('ads');
+    if (cached != null) {
+      try {
+        i.ads = (jsonDecode(cached) as List)
+            .map((e) => Ad.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
+      } catch (_) {}
+    }
+    await requestPushPermission();
+    Api.loadNetInfo();
+    await i.syncBgPushState();
+    // Главное при запуске — объявления. Остальные запросы к серверу начинаем позже, чтобы они не вставали в очередь перед лентой
+    Future.delayed(const Duration(seconds: 4), () {
+      i.syncFcm();
+      i.refreshUnread();
+      if (i.logged) {
+        i.syncBlocks();
+        i.syncSS();
+        i.syncAccount();
+      }
+    });
+    i._timer = Timer.periodic(const Duration(seconds: 30), (_) => i.refreshUnread());
+    Future.delayed(const Duration(seconds: 8), () => i.checkAppUpdate(silent: true));
+  }
+
+  static Future<void> requestPushPermission() async {
+    try {
+      final dev = await _notifyCh.invokeMethod('request');
+      if (dev is String && dev.trim().isNotEmpty) {
+        Api.deviceName = 'Android · ${dev.trim()}';
+      }
+    } catch (_) {}
+  }
+
+  // Передаёт серверу токен устройства для push-уведомлений при закрытом приложении
+  Future<void> syncFcm() async {
+    try {
+      final tok = await _notifyCh.invokeMethod('fcmToken');
+      if (tok is String && tok.isNotEmpty) await Api.call('fcm', {'tok': tok});
+    } catch (_) {}
+  }
+
+  // Системные уведомления из приложения показываем только пока оно открыто, в фоне их присылает сервер
+  bool get _resumed {
+    final st = WidgetsBinding.instance.lifecycleState;
+    return st == null || st == AppLifecycleState.resumed;
+  }
+
+  Future<void> syncBgPushState() async {
+    try {
+      await _notifyCh.invokeMethod('syncBg', {
+        'url': apiUrl,
+        'apiUrl': apiUrl,
+        'token': Api.token ?? '',
+        'enabled': messageNotificationsEnabled,
+        'lastPushTs': lastPushTs,
+        'lastUnread': _msgs,
+        'unread': _msgs,
+      });
+    } catch (_) {}
+  }
+
+  static Future<void> showSystemPush(String title, String body, {int? id}) async {
+    try {
+      await _notifyCh.invokeMethod('show', {
+        'title': title,
+        'body': body,
+        'id': id ?? (DateTime.now().millisecondsSinceEpoch & 0x7fffffff),
+      });
+    } catch (_) {}
+  }
+
+  bool get logged => user != null;
+  String get pid => (user?['pid'] ?? '').toString();
+  String get phone => (user?['phone'] ?? '').toString();
+  String get name => (user?['name'] ?? '').toString();
+  String get login => (user?['login'] ?? '').toString();
+
+  Future<void> setUser(Map<String, dynamic>? j) async {
+    user = j;
+    Api.token = j == null ? null : j['t'] as String?;
+    if (j == null) {
+      await prefs.remove('user');
+    } else {
+      await prefs.setString('user', jsonEncode(j));
+    }
+    cabTick++;
+    if (j == null) {
+      unread = 0;
+      _msgs = 0;
+      _dlgs = 0;
+      _unreadInit = false;
+      if (tab == 4) tab = 0; // вкладка «Сообщения» только для вошедших
+    } else if (tab == 0) {
+      tab = 1; // вошли: «Главная» скрыта, открываем поиск
+    }
+    notifyListeners();
+    await syncBgPushState();
+    syncFcm();
+    if (j != null) {
+      refreshUnread();
+      syncBlocks();
+      syncSS();
+      _applyAccount(j);
+    }
+  }
+
+  // Настройки аккаунта (приватность номера, типы уведомлений, «Не беспокоить», ИНН, удаление) хранятся на сервере
+  Future<void> _applyAccount(Map<String, dynamic> j) async {
+    final pr = j['privacy'];
+    if (pr is Map) {
+      phonePrivacy = (pr['phoneMode'] ?? 'all').toString();
+      await prefs.setString('phone_privacy', phonePrivacy);
+    }
+    final np = j['notifPrefs'];
+    if (np is Map) {
+      notifTypes = {...notifTypes, for (final e in np.entries) e.key.toString(): e.value == true};
+      await prefs.setString('notif_types', jsonEncode(notifTypes));
+    }
+    final d = j['dnd'];
+    if (d is Map) {
+      dndOn = d['on'] == true;
+      dndFrom = (d['from'] ?? dndFrom).toString();
+      dndTo = (d['to'] ?? dndTo).toString();
+      await prefs.setBool('dnd_on', dndOn);
+      await prefs.setString('dnd_from', dndFrom);
+      await prefs.setString('dnd_to', dndTo);
+    }
+    await patchUser({'inn': j['inn'] ?? '', 'innOk': j['innVerified'] == true, 'delAt': j['delAt'] ?? 0});
+  }
+
+  Future<void> syncAccount() async {
+    try {
+      await _applyAccount(await Api.call('me'));
+    } catch (_) {}
+  }
+
+  // «Не беспокоить»: сейчас ночное окно, звук уведомлений не нужен
+  bool get dndNow {
+    if (!dndOn) return false;
+    int m(String t) {
+      final p = t.split(':');
+      return (int.tryParse(p[0]) ?? 0) * 60 + (int.tryParse(p.length > 1 ? p[1] : '0') ?? 0);
+    }
+    final n = DateTime.now(), c = n.hour * 60 + n.minute, f = m(dndFrom), t = m(dndTo);
+    return f <= t ? c >= f && c < t : c >= f || c < t;
+  }
+
+  Future<void> patchUser(Map<String, dynamic> m) async {
+    if (user == null) return;
+    user = <String, dynamic>{...user!, ...m};
+    await prefs.setString('user', jsonEncode(user));
+    notifyListeners();
+  }
+
+  bool isFav(String id) => fav.contains(id);
+
+  bool isChatMuted(String pid) => mutedChats.containsKey(pid);
+
+  bool isBlocked(String pid) => pid.isNotEmpty && blockedUsers.containsKey(pid);
+
+  Future<void> reportItem(String id, String reason) async {
+    await Api.call('report', {'id': id, 'reason': reason});
+  }
+
+  Future<void> setBlocked(String targetPid, String targetName, bool on) async {
+    if (logged) {
+      await Api.call('block', {'pid': targetPid, 'on': on});
+    }
+    if (on) {
+      blockedUsers[targetPid] = targetName.isEmpty ? 'Пользователь' : targetName;
+    } else {
+      blockedUsers.remove(targetPid);
+    }
+    await prefs.setString('blocked_users', jsonEncode(blockedUsers));
+    notifyListeners();
+  }
+
+  Future<void> syncBlocks() async {
+    if (!logged) return;
+    try {
+      final j = await Api.call('blocks');
+      final list = j['list'];
+      if (list is List) {
+        final next = <String, String>{};
+        for (final it in list) {
+          final m = Map<String, dynamic>.from(it as Map);
+          final p = (m['pid'] ?? '').toString();
+          final n = (m['name'] ?? 'Пользователь').toString();
+          if (p.isNotEmpty) next[p] = n;
+        }
+        blockedUsers = next;
+        await prefs.setString('blocked_users', jsonEncode(blockedUsers));
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  // подсказки и предупреждение в чате скрываются отдельно для каждого собеседника (навсегда)
+  bool chipsHidden(String pid) => prefs.getBool('qh_${user?['pid'] ?? ''}_$pid') ?? false;
+  Future<void> hideChips(String pid) => prefs.setBool('qh_${user?['pid'] ?? ''}_$pid', true);
+  bool safeHidden(String pid) => prefs.getBool('safe_${user?['pid'] ?? ''}_$pid') ?? false;
+  Future<void> hideSafe(String pid) => prefs.setBool('safe_${user?['pid'] ?? ''}_$pid', true);
+
+  Future<void> setChatQuickSuggestionsEnabled(bool enabled) async {
+    vibrate();
+    chatQuickSuggestionsEnabled = enabled;
+    await prefs.setBool('chat_quick_suggestions', enabled);
+    notifyListeners();
+  }
+
+  Future<void> setChatMuted(String pid, String name, bool muted) async {
+    vibrate();
+    if (muted) {
+      mutedChats[pid] = name;
+    } else {
+      mutedChats.remove(pid);
+    }
+    await prefs.setString('muted_chats', jsonEncode(mutedChats));
+    _unreadInit = false; // переключение фильтра уведомлений не должно выглядеть новым сообщением
+    notifyListeners();
+    refreshUnread();
+  }
+
+  static const _ssKeys = ['q', 'type', 'cat', 'city', 'min', 'max', 'pt', 'wh', 'urg'];
+  bool _ssSame(Map<String, String> a, Map<String, dynamic> b) => _ssKeys.every((k) => (a[k] ?? '') == (b[k] ?? '').toString());
+
+  // Сохранённые поиски лежат на сервере: так приходит push «Новое по вашему поиску» и поиски есть на всех устройствах
+  Future<void> syncSS() async {
+    if (!logged) return;
+    try {
+      final r = await Api.call('ssList', {'push': ss.map((e) => {for (final k in _ssKeys) k: e[k] ?? ''}).toList()});
+      final list = (r['list'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      final next = <Map<String, String>>[];
+      for (final x in list) {
+        final local = ss.where((e) => _ssSame(e, x)).toList();
+        final m = local.isNotEmpty ? Map<String, String>.from(local.first) : {for (final k in _ssKeys) k: (x[k] ?? '').toString()};
+        m['id'] = (x['id'] ?? '').toString();
+        next.add(m);
+      }
+      ss = next;
+      await saveSS();
+    } catch (_) {}
+  }
+
+  Future<void> addSS(Map<String, String> s) async {
+    ss.add(s);
+    await saveSS();
+    if (!logged) return;
+    try {
+      final r = await Api.call('ssSave', {'s': {for (final k in _ssKeys) k: s[k] ?? ''}});
+      s['id'] = (r['id'] ?? '').toString();
+      await saveSS();
+    } catch (_) {}
+  }
+
+  Future<void> delSS(Map<String, String> s) async {
+    ss.remove(s);
+    await saveSS();
+    final id = s['id'] ?? '';
+    if (logged && id.isNotEmpty) {
+      try {
+        await Api.call('ssDel', {'id': id});
+      } catch (_) {}
+    }
+  }
+
+  Future<void> saveSS() async {
+    await prefs.setString('ss', jsonEncode(ss));
+    notifyListeners();
+  }
+
+  // «Регион для поиска» из настроек: город, радиус и «сначала из города» по умолчанию для ленты
+  bool get regionChosen => prefs.containsKey('region_city');
+  String get regionCity => prefs.getString('region_city') ?? '';
+  String get regionRad => regionCity.isEmpty ? '' : '100';
+  bool get regionFirst => true;
+  int regionStamp = 0;
+
+  Future<void> setRegion(String city, String rad, bool first) async {
+    final c = city.trim();
+    await prefs.setString('region_city', c);
+    await prefs.setString('region_rad', c.isEmpty ? '' : rad);
+    await prefs.setBool('region_first', first);
+    regionStamp++;
+    notifyListeners();
+  }
+
+  Future<void> toggleFav(String id) async {
+    vibrate(true);
+    final added = !fav.remove(id);
+    if (added) fav.add(id);
+    await prefs.setStringList('fav', fav.toList());
+    notifyListeners();
+  }
+
+  bool _refreshing = false;
+
+  // Обработка серверных Push-уведомлений (рассылки админа и события по сделкам)
+  Future<void> _handlePushes(dynamic plist) async {
+    try {
+      if (plist is List && plist.isNotEmpty) {
+        var maxTs = lastPushTs;
+        for (final raw in plist) {
+          final m = Map<String, dynamic>.from(raw as Map);
+          final ts = (m['ts'] as num?)?.toInt() ?? 0;
+          final title = (m['title'] ?? 'ЗадаЧО').toString();
+          final body = (m['body'] ?? '').toString();
+          if (ts > maxTs) maxTs = ts;
+          if (messageNotificationsEnabled && body.isNotEmpty) {
+            if (_resumed && !dndNow) await showSystemPush(title, body);
+            TopToastHost.show(body, title: title, seconds: 5);
+          }
+        }
+        if (maxTs > lastPushTs) {
+          lastPushTs = maxTs;
+          await prefs.setInt('last_push_ts', lastPushTs);
+          await syncBgPushState();
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> refreshUnread() async {
+    if (_refreshing) return; // предыдущая проверка ещё идёт: не копим запросы к медленному серверу
+    _refreshing = true;
+    try {
+      await _refreshUnread();
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  Future<void> _refreshUnread() async {
+    // Вошедшему пользователю пуши приходят вместе с «unread», отдельный запрос не нужен
+    if (!logged || mutedChats.isNotEmpty) {
+      try {
+        final pj = await Api.call('pushes', {'after': lastPushTs});
+        await _handlePushes(pj['list']);
+      } catch (_) {}
+    }
+
+    if (!logged) {
+      if (unread != 0) {
+        unread = 0;
+        notifyListeners();
+        await syncBgPushState();
+      }
+      return;
+    }
+    try {
+      int n;
+      int msgs;
+      if (mutedChats.isEmpty) {
+        final j = await Api.call('unread', {'pAfter': lastPushTs});
+        await _handlePushes(j['pushes']);
+        msgs = (j['n'] as num?)?.toInt() ?? 0;
+        if (msgs == 0) {
+          _dlgs = 0;
+        } else if (msgs != _msgs || _dlgs == 0) {
+          // число сообщений изменилось: узнаём, сколько это диалогов
+          _dlgs = await _countUnreadDialogs() ?? 0;
+        }
+        n = _dlgs == 0 ? msgs : _dlgs;
+      } else {
+        // Когда есть отключённые диалоги, считаем непрочитанное по диалогам,
+        // как это делает веб-версия, чтобы приглушённые чаты не поднимали бейдж.
+        final j = await Api.call('dialogs');
+        n = 0;
+        msgs = 0;
+        final list = j['list'];
+        if (list is List) {
+          for (final item in list) {
+            final d = Map<String, dynamic>.from(item as Map);
+            if (!isChatMuted((d['pid'] ?? '').toString())) {
+              final c = (d['n'] as num?)?.toInt() ?? int.tryParse((d['n'] ?? '0').toString()) ?? 0;
+              msgs += c;
+              if (c > 0) n++;
+            }
+          }
+        }
+      }
+      if (_unreadInit && msgs > _msgs && messageNotificationsEnabled && !messagesOpen && chatOpen == 0) {
+        if (_resumed) await showSystemPush('Новое сообщение', 'Откройте ЗадаЧО, чтобы прочитать сообщение');
+        TopToastHost.show(
+          'Откройте чаты, чтобы прочитать сообщение',
+          title: 'Новое сообщение',
+          actionLabel: 'Открыть',
+          onAction: () => openMessages?.call(),
+          seconds: 5,
+        );
+      }
+      _msgs = msgs;
+      _unreadInit = true;
+      if (n != unread) {
+        unread = n;
+        msgTick++;
+        notifyListeners();
+      }
+      await syncBgPushState();
+    } catch (e) {
+      if (e is ApiError && e.message == 'auth') fail(e);
+    }
+  }
+
+  /// Сколько диалогов с непрочитанным (без отключённых); null, если не удалось узнать
+  Future<int?> _countUnreadDialogs() async {
+    try {
+      final j = await Api.call('dialogs');
+      final list = j['list'];
+      if (list is! List) return null;
+      var c = 0;
+      for (final item in list) {
+        final d = Map<String, dynamic>.from(item as Map);
+        final k = (d['n'] as num?)?.toInt() ?? int.tryParse((d['n'] ?? '0').toString()) ?? 0;
+        if (k > 0 && !isChatMuted((d['pid'] ?? '').toString())) c++;
+      }
+      return c;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Проверка обновлений APK через GitHub Releases репозитория
+  Future<bool> checkAppUpdate({bool silent = true}) async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse('https://api.github.com/repos/mchipta/ZadaCho-app/releases/latest'),
+            headers: const {'Accept': 'application/vnd.github+json'},
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) return false;
+      final j = jsonDecode(res.body) as Map<String, dynamic>;
+      final tag = (j['tag_name'] ?? '').toString().trim();
+      final name = (j['name'] ?? tag).toString().trim();
+      var dl = (j['html_url'] ?? 'https://github.com/mchipta/ZadaCho-app/releases/latest').toString();
+      if (j['assets'] is List) {
+        for (final a in (j['assets'] as List)) {
+          if (a is Map && (a['browser_download_url'] ?? '').toString().endsWith('.apk')) {
+            dl = a['browser_download_url'].toString();
+            break;
+          }
+        }
+      }
+      if (tag.isEmpty) return false;
+      final seenTag = prefs.getString('seen_release_tag') ?? '';
+      if (seenTag.isEmpty) {
+        // Первый запуск этой сборки — запоминаем текущий релиз как базовый
+        await prefs.setString('seen_release_tag', tag);
+        updateTag = tag;
+        updateUrl = dl;
+        updateName = name;
+        notifyListeners();
+        return !silent;
+      }
+      updateTag = tag;
+      updateUrl = dl;
+      updateName = name;
+      notifyListeners();
+      if (tag != seenTag) {
+        TopToastHost.show(
+          'Доступна новая версия $name',
+          title: 'Обновление приложения',
+          actionLabel: 'Скачать APK',
+          seconds: 8,
+          onAction: () {
+            prefs.setString('seen_release_tag', tag);
+            launchUrl(Uri.parse(dl), mode: LaunchMode.externalApplication);
+          },
+        );
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> loadAds() async {
+    loading = true;
+    loadError = null;
+    notifyListeners();
+    try {
+      final j = await Api.call('ads');
+      final list = (j['ads'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      ads = list.map(Ad.fromJson).toList();
+      final slim = list.map((m) => <String, dynamic>{...m, 'phone': ''}).toList();
+      await prefs.setString('ads', jsonEncode(slim));
+    } catch (e) {
+      loadError = fail(e);
+    }
+    loading = false;
+    notifyListeners();
+  }
+
+  String fail(Object e) {
+    final m = e is ApiError ? e.message : 'Что-то пошло не так. Попробуйте ещё раз';
+    if (m == 'auth') {
+      setUser(null);
+      return 'Войдите в аккаунт';
+    }
+    return m;
+  }
+
+  // стеклянная панель: приложение рисуется под системной полосой навигации
+  static void applyEdgeToEdge(bool on) {
+    if (on) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    } else {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
+    }
+  }
+
+  Future<void> setFeedMode(int m) async {
+    if (m == feedMode) return;
+    vibrate();
+    feedMode = m;
+    notifyListeners();
+    await prefs.setInt('feed_mode', m);
+  }
+
+  Future<void> setNavTransparent(bool v) async {
+    vibrate();
+    navTransparent = v;
+    await prefs.setBool('nav_transparent', v);
+    notifyListeners();
+  }
+
+  Future<void> setMessageNotificationsEnabled(bool enabled) async {
+    vibrate();
+    messageNotificationsEnabled = enabled;
+    await prefs.setBool('messages_notifications', enabled);
+    if (enabled) await requestPushPermission();
+    await syncBgPushState();
+    notifyListeners();
+  }
+
+  Future<void> setTimeZone(String zone) async {
+    vibrate();
+    timeZone = zone;
+    await prefs.setString('timezone', zone);
+    notifyListeners();
+  }
+
+  Future<void> setTheme(ThemeMode m) async {
+    vibrate();
+    themeMode = m;
+    await prefs.setString('theme', m == ThemeMode.dark ? 'dark' : m == ThemeMode.light ? 'light' : 'system');
+    notifyListeners();
+  }
+
+  Future<void> setAccent(int idx) async {
+    vibrate();
+    accentIdx = idx.clamp(0, Pal.accents.length - 1).toInt();
+    Pal.accentIndex = accentIdx;
+    await prefs.setInt('accent_idx', accentIdx);
+    notifyListeners();
+  }
+
+  Future<void> setPhonePrivacy(String v) async {
+    vibrate();
+    phonePrivacy = v;
+    await prefs.setString('phone_privacy', v);
+    notifyListeners();
+    if (logged) {
+      Api.call('saveSettings', {'privacy': v}).then((_) {}, onError: (_) {});
+    }
+  }
+
+  Future<void> setNotifType(String k, bool v) async {
+    vibrate();
+    notifTypes = {...notifTypes, k: v};
+    await prefs.setString('notif_types', jsonEncode(notifTypes));
+    notifyListeners();
+    if (logged) {
+      Api.call('saveSettings', {'notifPrefs': notifTypes}).then((_) {}, onError: (_) {});
+    }
+  }
+
+  Future<void> setDnd({bool? on, String? from, String? to}) async {
+    vibrate();
+    if (on != null) {
+      dndOn = on;
+      await prefs.setBool('dnd_on', on);
+    }
+    if (from != null) {
+      dndFrom = from;
+      await prefs.setString('dnd_from', from);
+    }
+    if (to != null) {
+      dndTo = to;
+      await prefs.setString('dnd_to', to);
+    }
+    notifyListeners();
+    if (logged) {
+      Api.call('saveSettings', {
+        'dnd': {'on': dndOn, 'from': dndFrom, 'to': dndTo}
+      }).then((_) {}, onError: (_) {});
+    }
+  }
+
+  void goTab(int t) {
+    if (tab != t) vibrate();
+    tab = t;
+    if (t == 3 || t == 6) cabTick++;
+    if (t == 4) msgTick++;
+    notifyListeners();
+  }
+
+  void bumpCab() {
+    cabTick++;
+    notifyListeners();
+  }
+}
