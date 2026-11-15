@@ -38,6 +38,17 @@ class Api {
   // Запросы только на чтение можно безопасно повторить, если сервер Apps Script «просыпается» или занят
   static const _safe = {'ads', 'pushes', 'unread', 'dialogs', 'thread', 'profile', 'site', 'legal', 'posts'};
 
+  // Какие способы входа включены на сервере (Яндекс ID, VK ID)
+  static Future<Set<String>> oauthProviders() async {
+    try {
+      final r = await _client.get(Uri.parse('https://zadacho.ru/oauth/providers')).timeout(const Duration(seconds: 8));
+      final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>;
+      return {for (final e in j.entries) if (e.value == true) e.key};
+    } catch (_) {
+      return {};
+    }
+  }
+
   static Future<Map<String, dynamic>> call(String a, [Map<String, dynamic>? data]) async {
     final retry = _safe.contains(a) ? 2 : 0;
     ApiError? last;

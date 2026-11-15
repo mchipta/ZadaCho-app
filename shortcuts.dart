@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'api.dart';
 import 'state.dart';
 import 'widgets.dart';
 
@@ -32,7 +33,36 @@ class _ShortcutHostState extends State<ShortcutHost> with WidgetsBindingObserver
     if (state == AppLifecycleState.resumed) _check();
   }
 
+  // Возврат из браузера после входа через Яндекс ID / VK ID
+  Future<void> _checkOauth() async {
+    String? link;
+    try {
+      link = await _ch.invokeMethod<String>('takeOauth');
+    } catch (_) {
+      return;
+    }
+    if (link == null || !mounted) return;
+    final q = Uri.parse(link).queryParameters;
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    final err = q['err'];
+    if (err != null && err.isNotEmpty) {
+      toast(context, err);
+      return;
+    }
+    final tk = q['ticket'];
+    if (tk == null || tk.isEmpty) return;
+    try {
+      final j = await Api.call('oauthTicket', {'ticket': tk});
+      await S.i.setUser(j);
+      S.i.loadAds();
+      if (mounted) toast(context, 'Добро пожаловать, ${S.i.name}!');
+    } catch (e) {
+      if (mounted) toast(context, e.toString());
+    }
+  }
+
   Future<void> _check() async {
+    await _checkOauth();
     String? key;
     try {
       key = await _ch.invokeMethod<String>('take');

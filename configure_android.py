@@ -64,7 +64,14 @@ body, n = re.subn(
     '', m.group(2), flags=re.S)
 if n != 1:
     die('Не удалось найти LAUNCHER-фильтр у MainActivity')
-text = text[:m.start()] + m.group(1) + body + m.group(3) + text[m.end():]
+oauth_filter = (
+    '\n            <intent-filter>\n'
+    '                <action android:name="android.intent.action.VIEW"/>\n'
+    '                <category android:name="android.intent.category.DEFAULT"/>\n'
+    '                <category android:name="android.intent.category.BROWSABLE"/>\n'
+    '                <data android:scheme="zadacho" android:host="oauth"/>\n'
+    '            </intent-filter>\n        ')
+text = text[:m.start()] + m.group(1) + body + oauth_filter + m.group(3) + text[m.end():]
 
 alias = (
     '        <activity-alias android:name=".%(n)s" android:enabled="%(en)s" android:exported="true" '
@@ -472,6 +479,7 @@ class ZadaChoReplyReceiver : BroadcastReceiver() {
 
 class MainActivity : FlutterActivity() {
     private var pendingShortcut: String? = null
+    private var pendingOauth: String? = null
 
     // --- голосовые сообщения ---
     private var rec: MediaRecorder? = null
@@ -486,6 +494,7 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingShortcut = intent?.getStringExtra("shortcut")
+        grabOauth(intent)
         ZadaChoNotif.ensureChannel(this)
     }
 
@@ -507,6 +516,13 @@ class MainActivity : FlutterActivity() {
         setIntent(intent)
         val s = intent.getStringExtra("shortcut")
         if (s != null) pendingShortcut = s
+        grabOauth(intent)
+    }
+
+    // Возврат из браузера после входа через Яндекс ID / VK ID: ссылка zadacho://oauth?ticket=...
+    private fun grabOauth(i: Intent?) {
+        val d = i?.data
+        if (d != null && d.scheme == "zadacho" && d.host == "oauth") pendingOauth = d.toString()
     }
 
     override fun onDestroy() {
@@ -739,6 +755,10 @@ class MainActivity : FlutterActivity() {
                 if (call.method == "take") {
                     val s = pendingShortcut
                     pendingShortcut = null
+                    result.success(s)
+                } else if (call.method == "takeOauth") {
+                    val s = pendingOauth
+                    pendingOauth = null
                     result.success(s)
                 } else {
                     result.notImplemented()

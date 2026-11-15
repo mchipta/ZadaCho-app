@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'legal.dart';
 import 'state.dart';
@@ -94,6 +95,39 @@ class _AuthPageState extends State<AuthPage> {
   late final TapGestureRecognizer _rOffer = TapGestureRecognizer()..onTap = () => openLegal(context, 'offer');
   late final TapGestureRecognizer _rPrivacy = TapGestureRecognizer()..onTap = () => openLegal(context, 'privacy');
   late final TapGestureRecognizer _rConsent = TapGestureRecognizer()..onTap = () => openLegal(context, 'consent');
+
+  Set<String> _soc = {}; // способы входа, включённые на сервере
+
+  @override
+  void initState() {
+    super.initState();
+    Api.oauthProviders().then((v) {
+      if (mounted) setState(() => _soc = v);
+    });
+  }
+
+  Widget _socBtn(Pal p, String k, String label, String mark, Color c) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => launchUrl(Uri.parse('https://zadacho.ru/oauth/$k/start?mode=app'), mode: LaunchMode.externalApplication),
+          child: Container(
+            height: 50,
+            decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Container(
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(k == 'vk' ? 7 : 12)),
+                child: Text(mark, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
+              ),
+              const SizedBox(width: 10),
+              Text('Войти через $label', style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 15)),
+            ]),
+          ),
+        ),
+      );
 
   @override
   void dispose() {
@@ -317,6 +351,30 @@ class _AuthPageState extends State<AuthPage> {
           if (err != null) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(err!, style: TextStyle(color: p.dng, fontWeight: FontWeight.w600))),
           GradBtn(btn[m]!, busy: busy, onTap: _submit),
           const SizedBox(height: 10),
+          if ((m == AMode.login || m == AMode.reg) && _soc.isNotEmpty) ...[
+            Row(children: [
+              Expanded(child: Divider(color: p.bd)),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('или', style: TextStyle(color: p.mu, fontSize: 13))),
+              Expanded(child: Divider(color: p.bd)),
+            ]),
+            const SizedBox(height: 10),
+            if (_soc.contains('yandex')) _socBtn(p, 'yandex', 'Яндекс ID', 'Я', const Color(0xFFFC3F1D)),
+            if (_soc.contains('vk')) _socBtn(p, 'vk', 'VK ID', 'VK', const Color(0xFF0077FF)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+              child: Text.rich(
+                TextSpan(style: TextStyle(color: p.mu, fontSize: 12, height: 1.4), children: [
+                  const TextSpan(text: 'Входя через сервис, вы принимаете условия '),
+                  _link(p, 'Пользовательского соглашения', _rOffer),
+                  const TextSpan(text: ' и '),
+                  _link(p, 'Политики конфиденциальности', _rPrivacy),
+                  const TextSpan(text: ' и даёте '),
+                  _link(p, 'согласие на обработку персональных данных', _rConsent),
+                ]),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
           if (m == AMode.login) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
