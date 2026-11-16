@@ -360,20 +360,6 @@ class _AuthPageState extends State<AuthPage> {
             const SizedBox(height: 10),
             if (_soc.contains('yandex')) _socBtn(p, 'yandex', 'Яндекс ID', 'Я', const Color(0xFFFC3F1D)),
             if (_soc.contains('vk')) _socBtn(p, 'vk', 'VK ID', 'VK', const Color(0xFF0077FF)),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-              child: Text.rich(
-                TextSpan(style: TextStyle(color: p.mu, fontSize: 12, height: 1.4), children: [
-                  const TextSpan(text: 'Входя через сервис, вы принимаете условия '),
-                  _link(p, 'Пользовательского соглашения', _rOffer),
-                  const TextSpan(text: ' и '),
-                  _link(p, 'Политики конфиденциальности', _rPrivacy),
-                  const TextSpan(text: ' и даёте '),
-                  _link(p, 'согласие на обработку персональных данных', _rConsent),
-                ]),
-                textAlign: TextAlign.center,
-              ),
-            ),
           ],
           if (m == AMode.login) ...[
             Padding(
@@ -384,6 +370,8 @@ class _AuthPageState extends State<AuthPage> {
                   _link(p, 'Пользовательского соглашения', _rOffer),
                   const TextSpan(text: ' и '),
                   _link(p, 'Политики конфиденциальности', _rPrivacy),
+                  const TextSpan(text: ' и даёте '),
+                  _link(p, 'согласие на обработку персональных данных', _rConsent),
                 ]),
                 textAlign: TextAlign.center,
               ),
