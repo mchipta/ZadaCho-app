@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
 import 'state.dart';
+import 'theme.dart';
+import 'util.dart';
 import 'widgets.dart';
 
 // Ярлыки при долгом нажатии на значок приложения: «Разместить», «Поиск», «Сообщения»
@@ -61,8 +63,23 @@ class _ShortcutHostState extends State<ShortcutHost> with WidgetsBindingObserver
     }
   }
 
+  bool _askingPhone = false;
+
+  // Сервис входа (VK, Яндекс) мог не передать телефон: просим указать его, без номера аккаунт не оставляем
+  Future<void> _checkPhone() async {
+    if (_askingPhone || !mounted || !S.i.logged) return;
+    if (digitsOnly(S.i.phone).length >= 8) return;
+    _askingPhone = true;
+    try {
+      await showDialog<void>(context: context, barrierDismissible: false, builder: (c) => const _PhoneAsk());
+    } finally {
+      _askingPhone = false;
+    }
+  }
+
   Future<void> _check() async {
     await _checkOauth();
+    await _checkPhone();
     String? key;
     try {
       key = await _ch.invokeMethod<String>('take');
@@ -91,4 +108,89 @@ class _ShortcutHostState extends State<ShortcutHost> with WidgetsBindingObserver
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+
+class _PhoneAsk extends StatefulWidget {
+  const _PhoneAsk();
+  @override
+  State<_PhoneAsk> createState() => _PhoneAskState();
+}
+
+class _PhoneAskState extends State<_PhoneAsk> {
+  final _c = TextEditingController();
+  bool _busy = false;
+  String? _err;
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final n = normPhone(_c.text);
+    if (!phoneComplete(n)) {
+      setState(() => _err = 'Введите номер телефона полностью');
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _busy = true;
+      _err = null;
+    });
+    try {
+      final j = await Api.call('chPhone', {'phone': '+$n'});
+      await S.i.patchUser({'phone': j['phone']});
+      if (mounted) {
+        Navigator.pop(context);
+        toast(context, 'Номер сохранён');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _err = S.i.fail(e);
+        });
+      }
+    }
+  }
+
+  Future<void> _out() async {
+    await S.i.setUser(null);
+    S.i.loadAds();
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        backgroundColor: p.card,
+        title: Text('Укажите номер телефона', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text('Сервис входа не передал ваш номер. Укажите его, чтобы с вами могли связаться по объявлениям.', style: TextStyle(color: p.mu)),
+            ),
+            TextField(
+              controller: _c,
+              autofocus: true,
+              keyboardType: TextInputType.phone,
+              inputFormatters: [PhoneFormatter()],
+              decoration: InputDecoration(labelText: 'Номер телефона', hintText: '+7 (900) 000-00-00', errorText: _err),
+              onSubmitted: (_) => _busy ? null : _save(),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: _busy ? null : _out, child: const Text('Выйти из аккаунта')),
+          FilledButton(onPressed: _busy ? null : _save, child: _busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Сохранить')),
+        ],
+      ),
+    );
+  }
 }
