@@ -221,7 +221,7 @@ class _CabinetPageState extends State<CabinetPage> {
   // Вкладка «Объявления»: мои объявления, отклики мне, мои отклики + кнопка «Разместить объявление»
   Widget _buildAds(Pal p) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Объявления'), centerTitle: true),
+      appBar: AppBar(title: const Text('Объявления')),
       body: !S.i.logged
           ? const NeedAuth(icon: Icons.add_box_outlined, title: 'Мои объявления', text: 'Войдите, чтобы размещать объявления и видеть отклики на них.')
           : Stack(children: [
@@ -243,13 +243,7 @@ class _CabinetPageState extends State<CabinetPage> {
                       SmoothSwitch(
                         child: KeyedSubtree(
                           key: ValueKey('$ct-$caf'),
-                          child: _adsTabEmpty
-                              // пусто: заглушка по центру экрана, без нижней кнопки
-                              ? SizedBox(
-                                  height: MediaQuery.of(context).size.height * .6,
-                                  child: Center(child: SingleChildScrollView(physics: const NeverScrollableScrollPhysics(), child: Column(mainAxisSize: MainAxisSize.min, children: _content(p)))),
-                                )
-                              : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _content(p)),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _content(p)),
                         ),
                       ),
                   ],
@@ -602,8 +596,10 @@ class _CabinetPageState extends State<CabinetPage> {
       ['in', 'Отклики мне'],
       ['out', 'Мои отклики'],
     ];
-    return SizedBox(
-      height: 46,
+    return Container(
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: p.bd))),
+      child: SizedBox(
+      height: 50,
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
@@ -619,13 +615,14 @@ class _CabinetPageState extends State<CabinetPage> {
                 decoration: BoxDecoration(border: Border(bottom: BorderSide(color: ct == t[0] ? p.tx : Colors.transparent, width: 2.5))),
                 alignment: Alignment.center,
                 child: Text.rich(TextSpan(children: [
-                  TextSpan(text: t[1], style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: ct == t[0] ? p.tx : p.mu)),
+                  TextSpan(text: t[1], style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: ct == t[0] ? p.tx : p.mu)),
                   if (t[0] == 'in' && pend > 0)
                     TextSpan(text: '  $pend', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: p.ac)),
                 ])),
               ),
             ),
         ],
+      ),
       ),
     );
   }

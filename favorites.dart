@@ -65,7 +65,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                       EmptyState(
                           icon: Icons.favorite_border_rounded,
                           title: 'Здесь пока пусто',
-                          text: 'Нажмите на сердечко ♡ на карточке объявления, чтобы сохранить его сюда.',
+                          text: 'Нажмите на сердечко на карточке объявления, чтобы сохранить его сюда.',
                           button: 'Найти объявления',
                           onTap: () => S.i.goTab(1)),
                     for (final a in ads)

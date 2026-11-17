@@ -464,6 +464,54 @@ class _ReviewsPageState extends State<ReviewsPage> {
     );
   }
 
+  // Плашка рейтинга: средняя оценка слева, распределение по звёздам справа (как на сайте)
+  Widget _ratingCard(Pal p, double rt, int rc, List<Map<String, dynamic>> reviews) {
+    final c = <int, int>{5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
+    for (final r in reviews) {
+      final k = ((r['rating'] as num?) ?? 0).toInt();
+      if (c.containsKey(k)) c[k] = c[k]! + 1;
+    }
+    final tot = rc > 0 ? rc : reviews.length;
+    const gold = Color(0xFFFFB400);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: cardDeco(p),
+      child: IntrinsicHeight(
+        child: Row(children: [
+          SizedBox(
+            width: 112,
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text(tot > 0 ? rt.toStringAsFixed(1).replaceAll('.', ',') : '—', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: p.tx)),
+              const SizedBox(height: 4),
+              StarsRow(tot > 0 ? rt : 5, size: 16),
+              const SizedBox(height: 4),
+              Text(tot > 0 ? '$tot ${plural(tot, 'отзыв', 'отзыва', 'отзывов')}' : 'Пока нет оценок', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 12.5)),
+            ]),
+          ),
+          VerticalDivider(width: 29, thickness: 1, color: p.bd),
+          Expanded(
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              for (final s in [5, 4, 3, 2, 1])
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(children: [
+                    SizedBox(width: 30, child: Text('$s ★', style: TextStyle(color: p.mu, fontSize: 13, fontWeight: FontWeight.w700))),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(99),
+                        child: LinearProgressIndicator(value: tot > 0 ? c[s]! / tot : 0, minHeight: 6, backgroundColor: p.bd, valueColor: const AlwaysStoppedAnimation(gold)),
+                      ),
+                    ),
+                    SizedBox(width: 26, child: Text('${c[s]}', textAlign: TextAlign.right, style: TextStyle(color: p.mu, fontSize: 13))),
+                  ]),
+                ),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
   Widget _body(Pal p, Map<String, dynamic> d) {
     final name = (d['name'] ?? widget.name).toString();
     final rc = (d['rc'] as num?)?.toInt() ?? 0;
@@ -473,20 +521,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
       color: p.ac,
       onRefresh: _load,
       child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: cardDeco(p),
-          child: Row(children: [
-            Icon(Icons.star_rounded, size: 34, color: const Color(0xFFFFB400)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(rc > 0 ? '$rt из 5' : 'Пока нет отзывов', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 19, color: p.tx)),
-                Text(rc > 0 ? '$rc ${plural(rc, 'отзыв', 'отзыва', 'отзывов')} о $name' : name, style: TextStyle(color: p.mu, fontSize: 13)),
-              ]),
-            ),
-          ]),
-        ),
+        _ratingCard(p, rt, rc, reviews),
         const SizedBox(height: 14),
         if (d['can'] == true) ...[
           Container(
@@ -520,7 +555,6 @@ class _ReviewsPageState extends State<ReviewsPage> {
           ),
           const SizedBox(height: 14),
         ],
-        if (reviews.isEmpty) Padding(padding: const EdgeInsets.all(20), child: Center(child: Text('Отзывов пока нет', style: TextStyle(color: p.mu)))),
         for (final r in reviews)
           Container(
             margin: const EdgeInsets.only(bottom: 10),
