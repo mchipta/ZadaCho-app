@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show compute;
+import 'package:image/image.dart' as img;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData, KeyboardInsertedContent;
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'ad_page.dart';
@@ -57,6 +60,15 @@ bool chatRiskOut(String text) {
 }
 
 // ---------- Список диалогов ----------
+/// Скриншот из буфера → JPEG до 1280 px (как и обычные фото чата)
+Uint8List _pasteToJpeg(Uint8List b) {
+  final im = img.decodeImage(b);
+  if (im == null) throw ApiError('Не удалось открыть изображение');
+  final big = im.width > 1280 || im.height > 1280;
+  final r = !big ? im : (im.width >= im.height ? img.copyResize(im, width: 1280) : img.copyResize(im, height: 1280));
+  return Uint8List.fromList(img.encodeJpg(r, quality: 80));
+}
+
 class MessagesPage extends StatefulWidget {
   // embedded = true: страница живёт во вкладке нижнего меню (без кнопки «назад»)
   final bool embedded;
@@ -1150,6 +1162,27 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  // Картинка из буфера обмена (скриншот из клавиатуры Gboard и т.п.) — отправляем как фото
+  Future<void> _pasteImage(KeyboardInsertedContent c) async {
+    final data = c.data;
+    if (busy || _editId != null || data == null || data.isEmpty) return;
+    try {
+      setState(() => busy = true);
+      final jpg = await compute(_pasteToJpeg, data);
+      final d = 'data:image/jpeg;base64,${base64Encode(jpg)}';
+      if (d.length > 1800000) throw ApiError('Фото слишком большое. Выберите другое');
+      final j = await Api.call('upimg', {'data': d});
+      if (mounted) setState(() => busy = false);
+      await _send(imgs: [j['id'].toString()]);
+    } catch (e) {
+      final m = S.i.fail(e);
+      if (mounted) {
+        setState(() => busy = false);
+        toast(context, m, err: true);
+      }
+    }
+  }
+
   String get _status {
     if (typing) return 'печатает…';
     if (online) return 'в сети';
@@ -1934,6 +1967,10 @@ class _ChatPageState extends State<ChatPage> {
                   child: TextField(contextMenuBuilder: appContextMenu, 
                     controller: _ctl,
                     focusNode: _fn,
+                    contentInsertionConfiguration: ContentInsertionConfiguration(
+                      allowedMimeTypes: const ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
+                      onContentInserted: _pasteImage,
+                    ),
                     onTap: () {
                       if (_emoji) setState(() => _emoji = false);
                     },

@@ -1952,3 +1952,141 @@ class _TypewriterHintState extends State<TypewriterHint> {
     return Text(_text.isEmpty ? '${widget.prefix} |' : _text, maxLines: 1, softWrap: false, overflow: TextOverflow.clip, style: widget.style);
   }
 }
+
+// ───────── Надёжность пароля, совпадение паролей, повторная отправка кода ─────────
+
+/// 0 — пусто, 1 — слабый, 2 — средний, 3 — надёжный
+int pwLevel(String v) {
+  if (v.isEmpty) return 0;
+  if (v.length < 6) return 1;
+  var n = 1;
+  if (v.length >= 10) n++;
+  if (RegExp(r'[a-zа-яё]').hasMatch(v) && RegExp(r'[A-ZА-ЯЁ]').hasMatch(v)) n++;
+  if (RegExp(r'\d').hasMatch(v)) n++;
+  if (RegExp(r'[^\w\sа-яёА-ЯЁ]|_').hasMatch(v)) n++;
+  return n <= 2 ? 1 : (n == 3 ? 2 : 3);
+}
+
+class PwStrength extends StatelessWidget {
+  final String value;
+  const PwStrength(this.value, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    if (value.isEmpty) return const SizedBox.shrink();
+    final p = pal(context);
+    final l = pwLevel(value);
+    final col = l == 1 ? p.dng : (l == 2 ? const Color(0xFFFFB400) : p.ok);
+    final txt = value.length < 6 ? 'Слишком короткий — минимум 6 символов' : const ['', 'Слабый пароль', 'Средний пароль', 'Надёжный пароль'][l];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          for (var i = 1; i <= 3; i++)
+            Expanded(
+              child: Container(
+                height: 4,
+                margin: EdgeInsets.only(right: i < 3 ? 5 : 0),
+                decoration: BoxDecoration(color: i <= l ? col : p.bd, borderRadius: BorderRadius.circular(99)),
+              ),
+            ),
+        ]),
+        const SizedBox(height: 5),
+        Text(txt, style: TextStyle(color: col, fontSize: 12.5, fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+}
+
+class PwMatch extends StatelessWidget {
+  final String a, b;
+  const PwMatch(this.a, this.b, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    if (b.isEmpty) return const SizedBox.shrink();
+    final p = pal(context);
+    final ok = a == b;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(children: [
+        Icon(ok ? Icons.check_circle_rounded : Icons.error_outline_rounded, size: 16, color: ok ? p.ok : p.dng),
+        const SizedBox(width: 6),
+        Text(ok ? 'Пароли совпадают' : 'Пароли не совпадают', style: TextStyle(color: ok ? p.ok : p.dng, fontSize: 12.5, fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+}
+
+/// «Отправить код ещё раз» с обратным отсчётом (60 с после отправки)
+class ResendLink extends StatefulWidget {
+  final Future<void> Function() onResend;
+  final int seconds;
+  const ResendLink({super.key, required this.onResend, this.seconds = 60});
+  @override
+  State<ResendLink> createState() => _ResendLinkState();
+}
+
+class _ResendLinkState extends State<ResendLink> {
+  late int _left = widget.seconds;
+  Timer? _t;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  void _start() {
+    _t?.cancel();
+    _left = widget.seconds;
+    _t = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() {
+        if (_left > 0) _left--;
+        if (_left == 0) t.cancel();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _go() async {
+    if (_busy || _left > 0) return;
+    setState(() => _busy = true);
+    try {
+      await widget.onResend();
+      if (mounted) {
+        toast(context, 'Новый код отправлен');
+        setState(_start);
+      }
+    } catch (e) {
+      if (mounted) toast(context, S.i.fail(e), err: true);
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final can = _left == 0 && !_busy;
+    final txt = _left > 0 ? 'Отправить код ещё раз через 0:${_left.toString().padLeft(2, '0')}' : 'Отправить код ещё раз';
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: can ? _go : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(txt, style: TextStyle(color: can ? p.ac : p.mu, fontWeight: FontWeight.w700, fontSize: 14)),
+        ),
+      ),
+    );
+  }
+}

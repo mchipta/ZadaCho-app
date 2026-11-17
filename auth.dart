@@ -98,9 +98,14 @@ class _AuthPageState extends State<AuthPage> {
 
   Set<String> _soc = {}; // способы входа, включённые на сервере
 
+  void _pwTick() {
+    if (mounted && (m == AMode.reg || m == AMode.resetCode)) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
+    pass.addListener(_pwTick);
     Api.oauthProviders().then((v) {
       if (mounted) setState(() => _soc = v);
     });
@@ -331,8 +336,11 @@ class _AuthPageState extends State<AuthPage> {
           if (!isCode)
             _field(email, m == AMode.login ? 'Почта или телефон' : 'Почта', icon: Icons.mail_outline, type: m == AMode.login ? TextInputType.emailAddress : TextInputType.emailAddress),
           if (isCode) _field(code, 'Код из письма', icon: Icons.pin_outlined, type: TextInputType.number),
-          if (m == AMode.login || m == AMode.reg || m == AMode.resetCode)
+          if (isCode) ResendLink(onResend: () => Api.call('sendCode', {'email': _em, 'kind': m == AMode.regCode ? 'reg' : 'reset'})),
+          if (m == AMode.login || m == AMode.reg || m == AMode.resetCode) ...[
             _field(pass, m == AMode.resetCode ? 'Новый пароль' : 'Пароль', icon: Icons.lock_outline, secret: true),
+            if (m == AMode.reg || m == AMode.resetCode) PwStrength(pass.text),
+          ],
           if (m == AMode.reg) ...[
             _agree(p, agreeTerms, (v) => setState(() => agreeTerms = v), [
               const TextSpan(text: 'Я принимаю условия '),

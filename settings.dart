@@ -27,14 +27,16 @@ class FieldSpec {
   final TextInputType? type;
   final int? maxLen;
   final bool digitsOnly;
-  const FieldSpec(this.label, {this.initial = '', this.secret = false, this.multi = false, this.type, this.maxLen, this.digitsOnly = false});
+  final bool strength; // показывать надёжность пароля
+  final int? matchWith; // индекс поля, с которым сверяем («Повторите пароль»)
+  const FieldSpec(this.label, {this.initial = '', this.secret = false, this.multi = false, this.type, this.maxLen, this.digitsOnly = false, this.strength = false, this.matchWith});
 }
 
 Future<List<String>?> askFields(BuildContext context, String title, List<FieldSpec> fields,
-    {String ok = 'Сохранить', String? hint, Future<void> Function(List<String>)? onSubmit}) {
+    {String ok = 'Сохранить', String? hint, Future<void> Function(List<String>)? onSubmit, Future<void> Function()? resend}) {
   return showDialog<List<String>>(
     context: context,
-    builder: (c) => _FieldsDialog(title: title, fields: fields, ok: ok, hint: hint, onSubmit: onSubmit),
+    builder: (c) => _FieldsDialog(title: title, fields: fields, ok: ok, hint: hint, onSubmit: onSubmit, resend: resend),
   );
 }
 
@@ -43,7 +45,8 @@ class _FieldsDialog extends StatefulWidget {
   final String? hint;
   final List<FieldSpec> fields;
   final Future<void> Function(List<String>)? onSubmit;
-  const _FieldsDialog({required this.title, required this.fields, required this.ok, this.hint, this.onSubmit});
+  final Future<void> Function()? resend;
+  const _FieldsDialog({required this.title, required this.fields, required this.ok, this.hint, this.onSubmit, this.resend});
   @override
   State<_FieldsDialog> createState() => _FieldsDialogState();
 }
@@ -52,6 +55,16 @@ class _FieldsDialogState extends State<_FieldsDialog> {
   late final List<TextEditingController> cs = [for (final f in widget.fields) TextEditingController(text: f.initial)];
   bool _busy = false;
   String? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final c in cs) {
+      c.addListener(() {
+        if (mounted) setState(() {});
+      });
+    }
+  }
 
   Future<void> _submit() async {
     final vals = [for (final c in cs) c.text.trim()];
@@ -97,20 +110,25 @@ class _FieldsDialogState extends State<_FieldsDialog> {
           for (var i = 0; i < widget.fields.length; i++)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: TextField(contextMenuBuilder: appContextMenu, 
-                controller: cs[i],
-                obscureText: widget.fields[i].secret,
-                keyboardType: widget.fields[i].type,
-                enabled: !_busy,
-                maxLength: widget.fields[i].maxLen,
-                inputFormatters: [if (widget.fields[i].digitsOnly) FilteringTextInputFormatter.digitsOnly],
-                minLines: widget.fields[i].multi ? 3 : 1,
-                maxLines: widget.fields[i].multi ? 5 : 1,
-                autocorrect: !widget.fields[i].secret,
-                style: TextStyle(color: p.tx),
-                decoration: deco(context, widget.fields[i].label).copyWith(counterText: ''),
-              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                TextField(contextMenuBuilder: appContextMenu, 
+                  controller: cs[i],
+                  obscureText: widget.fields[i].secret,
+                  keyboardType: widget.fields[i].type,
+                  enabled: !_busy,
+                  maxLength: widget.fields[i].maxLen,
+                  inputFormatters: [if (widget.fields[i].digitsOnly) FilteringTextInputFormatter.digitsOnly],
+                  minLines: widget.fields[i].multi ? 3 : 1,
+                  maxLines: widget.fields[i].multi ? 5 : 1,
+                  autocorrect: !widget.fields[i].secret,
+                  style: TextStyle(color: p.tx),
+                  decoration: deco(context, widget.fields[i].label).copyWith(counterText: ''),
+                ),
+                if (widget.fields[i].strength) Padding(padding: const EdgeInsets.only(top: 8), child: PwStrength(cs[i].text)),
+                if (widget.fields[i].matchWith != null) Padding(padding: const EdgeInsets.only(top: 8), child: PwMatch(cs[widget.fields[i].matchWith!].text, cs[i].text)),
+              ]),
             ),
+          if (widget.resend != null) ResendLink(onResend: widget.resend!),
           if (_err != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(_err!, style: TextStyle(color: p.dng, fontSize: 13))),
         ]),
       ),
@@ -227,6 +245,7 @@ class _SettingsBodyState extends State<SettingsBody> {
         'Подтверждение',
         [FieldSpec('Код из письма', type: TextInputType.number), FieldSpec('Текущий пароль', secret: true)],
         ok: 'Изменить',
+        resend: () => Api.call('sendCode', {'email': em, 'kind': 'chg'}),
         hint: 'Код отправлен на $em.\nЕсли письмо не приходит, проверьте папку «Спам».');
     if (c == null) return;
     await _run(() async {
@@ -868,8 +887,8 @@ class _AccountAuthCardState extends State<_AccountAuthCard> {
         'Изменить пароль',
         [
           const FieldSpec('Текущий пароль', secret: true),
-          const FieldSpec('Новый пароль (от 6 символов)', secret: true),
-          const FieldSpec('Повторите новый пароль', secret: true),
+          const FieldSpec('Новый пароль (от 6 символов)', secret: true, strength: true),
+          const FieldSpec('Повторите новый пароль', secret: true, matchWith: 1),
         ],
         ok: 'Сохранить',
         onSubmit: (v) async {
@@ -890,8 +909,8 @@ class _AccountAuthCardState extends State<_AccountAuthCard> {
       context,
       'Создать пароль',
       [
-        const FieldSpec('Новый пароль (от 6 символов)', secret: true),
-        const FieldSpec('Повторите пароль', secret: true),
+        const FieldSpec('Новый пароль (от 6 символов)', secret: true, strength: true),
+        const FieldSpec('Повторите пароль', secret: true, matchWith: 0),
       ],
       ok: 'Получить код',
       hint: 'Чтобы входить по почте или телефону. Код подтверждения придёт на ${S.i.login}',
@@ -908,6 +927,7 @@ class _AccountAuthCardState extends State<_AccountAuthCard> {
       'Подтверждение',
       [FieldSpec('Код из письма', type: TextInputType.number, maxLen: 6, digitsOnly: true)],
       ok: 'Создать пароль',
+      resend: () => Api.call('sendCode', {'email': S.i.login, 'kind': 'pw'}),
       hint: 'Код отправлен на ${S.i.login}.\nЕсли письмо не приходит, проверьте папку «Спам».',
       onSubmit: (v) async {
         if (v[0].isEmpty) throw ApiError('Введите код из письма');
