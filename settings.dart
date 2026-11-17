@@ -227,7 +227,7 @@ class _SettingsBodyState extends State<SettingsBody> {
         'Подтверждение',
         [FieldSpec('Код из письма', type: TextInputType.number), FieldSpec('Текущий пароль', secret: true)],
         ok: 'Изменить',
-        hint: 'Код отправлен на $em');
+        hint: 'Код отправлен на $em.\nЕсли письмо не приходит, проверьте папку «Спам».');
     if (c == null) return;
     await _run(() async {
       final j = await Api.call('chEmail', {
@@ -908,7 +908,7 @@ class _AccountAuthCardState extends State<_AccountAuthCard> {
       'Подтверждение',
       [FieldSpec('Код из письма', type: TextInputType.number, maxLen: 6, digitsOnly: true)],
       ok: 'Создать пароль',
-      hint: 'Код отправлен на ${S.i.login}',
+      hint: 'Код отправлен на ${S.i.login}.\nЕсли письмо не приходит, проверьте папку «Спам».',
       onSubmit: (v) async {
         if (v[0].isEmpty) throw ApiError('Введите код из письма');
         await Api.call('setPw', {'code': v[0], 'hash': sha256Hex('${S.i.login}:$pw')});

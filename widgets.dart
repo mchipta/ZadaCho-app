@@ -1642,7 +1642,7 @@ class EmptyState extends StatelessWidget {
     final p = pal(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 56, 32, 24),
-      child: Column(children: [
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, size: 52, color: p.mu),
         const SizedBox(height: 12),
         Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx)),

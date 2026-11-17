@@ -301,7 +301,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(width: 8),
                   StarsRow(rt, size: 16),
                   const SizedBox(width: 8),
-                  Text('$rc ${plural(rc, 'отзыв', 'отзыва', 'отзывов')}', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700, fontSize: 14)),
+                  Text('$rc ${plural(rc, 'отзыв', 'отзыва', 'отзывов')}', style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 14)),
                 ] else
                   Text('Пока нет отзывов', style: TextStyle(color: p.mu, fontSize: 14)),
                 const Icon(Icons.chevron_right_rounded, size: 20),

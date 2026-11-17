@@ -203,6 +203,21 @@ class _CabinetPageState extends State<CabinetPage> {
     );
   }
 
+  // На вкладке нет ни одной записи (нет объявлений / откликов) — показываем только заглушку по центру
+  bool get _adsTabEmpty {
+    switch (ct) {
+      case 'in':
+        return _list('inbox').isEmpty;
+      case 'out':
+        return _list('sent').isEmpty;
+      case 'rev':
+      case 'set':
+        return false;
+      default:
+        return _list('ads').isEmpty;
+    }
+  }
+
   // Вкладка «Объявления»: мои объявления, отклики мне, мои отклики + кнопка «Разместить объявление»
   Widget _buildAds(Pal p) {
     return Scaffold(
@@ -225,10 +240,22 @@ class _CabinetPageState extends State<CabinetPage> {
                     if (err != null && data == null)
                       Padding(padding: const EdgeInsets.all(24), child: Text(err!, textAlign: TextAlign.center, style: TextStyle(color: p.mu))),
                     if (data != null)
-                      SmoothSwitch(child: KeyedSubtree(key: ValueKey('$ct-$caf'), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _content(p)))),
+                      SmoothSwitch(
+                        child: KeyedSubtree(
+                          key: ValueKey('$ct-$caf'),
+                          child: _adsTabEmpty
+                              // пусто: заглушка по центру экрана, без нижней кнопки
+                              ? SizedBox(
+                                  height: MediaQuery.of(context).size.height * .6,
+                                  child: Center(child: SingleChildScrollView(physics: const NeverScrollableScrollPhysics(), child: Column(mainAxisSize: MainAxisSize.min, children: _content(p)))),
+                                )
+                              : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _content(p)),
+                        ),
+                      ),
                   ],
                 ),
               ),
+              if (!(data != null && _adsTabEmpty))
               Positioned(
                 left: 16,
                 right: 16,

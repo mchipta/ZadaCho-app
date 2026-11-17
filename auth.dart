@@ -226,7 +226,7 @@ class _AuthPageState extends State<AuthPage> {
           code.clear();
           setState(() {
             m = AMode.regCode;
-            info = 'Код отправлен на $_em';
+            info = 'Код отправлен на $_em.\nЕсли письмо не приходит, проверьте папку «Спам».';
           });
         });
         break;
@@ -255,7 +255,7 @@ class _AuthPageState extends State<AuthPage> {
           pass.clear();
           setState(() {
             m = AMode.resetCode;
-            info = 'Если такой аккаунт есть, код отправлен на $_em';
+            info = 'Если такой аккаунт есть, код отправлен на $_em.\nЕсли письмо не приходит, проверьте папку «Спам».';
           });
         });
         break;
