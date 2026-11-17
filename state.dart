@@ -605,6 +605,26 @@ class S extends ChangeNotifier {
       }
       if (tag.isEmpty) return false;
       final seenTag = prefs.getString('seen_release_tag') ?? '';
+      // Номер сборки есть и в установленном приложении, и в метке релиза (build-N): сравниваем их, а не «видел ли я этот релиз»
+      final relBuild = int.tryParse(RegExp(r'(\d+)\s*$').firstMatch(tag)?.group(1) ?? '') ?? 0;
+      if (kAppBuild > 0 && relBuild > 0) {
+        updateTag = tag;
+        updateUrl = dl;
+        updateName = name;
+        notifyListeners();
+        if (relBuild <= kAppBuild) return false; // стоит последняя сборка (или новее)
+        if (!silent) return true;
+        if (tag == seenTag) return false; // про эту сборку уже напоминали
+        await prefs.setString('seen_release_tag', tag);
+        TopToastHost.show(
+          'Доступна новая версия $name',
+          title: 'Обновление приложения',
+          actionLabel: 'Скачать APK',
+          seconds: 8,
+          onAction: () => launchUrl(Uri.parse(dl), mode: LaunchMode.externalApplication),
+        );
+        return true;
+      }
       if (seenTag.isEmpty) {
         // Первый запуск этой сборки — запоминаем текущий релиз как базовый
         await prefs.setString('seen_release_tag', tag);

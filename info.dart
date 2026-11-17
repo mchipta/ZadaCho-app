@@ -422,7 +422,7 @@ class _AboutAppPageState extends State<AboutAppPage> {
           const GradText('ЧО', size: 28),
         ]),
         const SizedBox(height: 4),
-        Center(child: Text('Версия $kAppVersion', style: TextStyle(color: p.mu, fontSize: 15))),
+        Center(child: Text(kAppBuild > 0 ? 'Версия $kAppVersion (сборка $kAppBuild)' : 'Версия $kAppVersion', style: TextStyle(color: p.mu, fontSize: 15))),
         const SizedBox(height: 20),
         Container(
           padding: const EdgeInsets.all(16),

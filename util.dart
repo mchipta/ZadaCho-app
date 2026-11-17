@@ -3,6 +3,8 @@ import 'models.dart';
 export 'models.dart';
 
 const kAppVersion = '1.0';
+// Номер установленной сборки: workflow передаёт его через --dart-define=APP_BUILD=<номер запуска>; 0 — сборка не из Actions
+const kAppBuild = int.fromEnvironment('APP_BUILD', defaultValue: 0);
 const kSiteUrl = 'https://zadacho.ru/';
 
 String digitsOnly(String s) => s.replaceAll(RegExp(r'\D'), '');
