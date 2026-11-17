@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import 'admin.dart';
 import 'api.dart';
@@ -362,6 +363,7 @@ class _SettingsBodyState extends State<SettingsBody> {
       if (S.i.logged)
         _group(p, 'Приватность и безопасность', [
         _hubRow(p, Icons.phonelink_lock_outlined, _cGreen, 'Приватность номера', priv, () => _open('privacy', 'Приватность номера')),
+        _hubRow(p, Icons.lock_outline_rounded, _cPurple, 'Вход и пароль', 'Пароль, Яндекс ID, VK ID', () => _open('acc', 'Вход и пароль')),
         _hubRow(p, Icons.devices_outlined, _cBlue, 'Активные устройства', 'Где выполнен вход в аккаунт', () => _open('devices', 'Активные устройства')),
       ]),
       if (S.i.logged)
@@ -531,6 +533,7 @@ class _SettingsBodyState extends State<SettingsBody> {
             ),
       ],
       if (sec == 'inn' && S.i.logged) _innCard(p),
+      if (sec == 'acc' && S.i.logged) const _AccountAuthCard(),
       if (sec == 'devices' && S.i.logged) const _DevicesCard(),
       if (sec == 'tz') ...[
         _rowsCard(p, [
@@ -802,6 +805,307 @@ class _SettingsBodyState extends State<SettingsBody> {
             });
           }),
     ];
+  }
+}
+
+// Раздел «Вход и пароль»: создать или сменить пароль, привязать и отвязать Яндекс ID и VK ID
+class _AccountAuthCard extends StatefulWidget {
+  const _AccountAuthCard();
+  @override
+  State<_AccountAuthCard> createState() => _AccountAuthCardState();
+}
+
+class _AccountAuthCardState extends State<_AccountAuthCard> {
+  bool _loading = true, _failed = false, _busy = false;
+  bool _hasPw = true;
+  Set<String> _links = <String>{};
+  Set<String> _avail = <String>{};
+
+  static const _prov = [
+    ['yandex', 'Яндекс ID'],
+    ['vk', 'VK ID'],
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final j = await Api.call('authInfo');
+      final av = await Api.oauthProviders();
+      final raw = j['links'];
+      final ln = <String>{};
+      if (raw is List) {
+        for (final e in raw) {
+          if (e is Map) ln.add((e['provider'] ?? '').toString());
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _hasPw = j['hasPw'] != false;
+        _links = ln;
+        _avail = av;
+        _loading = false;
+        _failed = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _failed = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _password() async {
+    if (_hasPw) {
+      final r = await askFields(
+        context,
+        'Изменить пароль',
+        [
+          const FieldSpec('Текущий пароль', secret: true),
+          const FieldSpec('Новый пароль (от 6 символов)', secret: true),
+          const FieldSpec('Повторите новый пароль', secret: true),
+        ],
+        ok: 'Сохранить',
+        onSubmit: (v) async {
+          if (v[0].isEmpty) throw ApiError('Введите текущий пароль');
+          if (v[1].length < 6) throw ApiError('Пароль должен быть не короче 6 символов');
+          if (v[1] != v[2]) throw ApiError('Пароли не совпадают');
+          if (v[1] == v[0]) throw ApiError('Новый пароль совпадает с текущим');
+          await Api.call('chPw', {
+            'old': sha256Hex('${S.i.login}:${v[0]}'),
+            'hash': sha256Hex('${S.i.login}:${v[1]}'),
+          });
+        },
+      );
+      if (r != null && mounted) toast(context, 'Пароль изменён. На других устройствах вы вышли из аккаунта');
+      return;
+    }
+    final r = await askFields(
+      context,
+      'Создать пароль',
+      [
+        const FieldSpec('Новый пароль (от 6 символов)', secret: true),
+        const FieldSpec('Повторите пароль', secret: true),
+      ],
+      ok: 'Получить код',
+      hint: 'Чтобы входить по почте или телефону. Код подтверждения придёт на ${S.i.login}',
+      onSubmit: (v) async {
+        if (v[0].length < 6) throw ApiError('Пароль должен быть не короче 6 символов');
+        if (v[0] != v[1]) throw ApiError('Пароли не совпадают');
+        await Api.call('sendCode', {'email': S.i.login, 'kind': 'pw'});
+      },
+    );
+    if (r == null || !mounted) return;
+    final pw = r[0];
+    final c = await askFields(
+      context,
+      'Подтверждение',
+      [FieldSpec('Код из письма', type: TextInputType.number, maxLen: 6, digitsOnly: true)],
+      ok: 'Создать пароль',
+      hint: 'Код отправлен на ${S.i.login}',
+      onSubmit: (v) async {
+        if (v[0].isEmpty) throw ApiError('Введите код из письма');
+        await Api.call('setPw', {'code': v[0], 'hash': sha256Hex('${S.i.login}:$pw')});
+      },
+    );
+    if (c == null || !mounted) return;
+    setState(() => _hasPw = true);
+    toast(context, 'Пароль создан. Теперь можно входить по почте и паролю');
+  }
+
+  Future<void> _link(String k) async {
+    setState(() => _busy = true);
+    try {
+      final j = await Api.call('oauthLinkTicket', {'provider': k});
+      final tk = (j['ticket'] ?? '').toString();
+      if (tk.isEmpty) throw ApiError('Не удалось начать привязку. Попробуйте ещё раз');
+      await launchUrl(
+        Uri.parse('https://zadacho.ru/oauth/$k/start?mode=app&link=${Uri.encodeQueryComponent(tk)}'),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      if (mounted) toast(context, S.i.fail(e), err: true);
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _unlink(String k, String name) async {
+    if (!_hasPw && _links.length <= 1) {
+      toast(context, 'Сначала создайте пароль, иначе вы не сможете войти в аккаунт', err: true);
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('Отвязать $name?'),
+        content: const Text('Входить в этот аккаунт через сервис будет нельзя.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Отвязать')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await Api.call('oauthUnlink', {'provider': k});
+      if (mounted) {
+        setState(() {
+          _links = {..._links}..remove(k);
+        });
+        toast(context, '$name отвязан');
+      }
+    } catch (e) {
+      if (mounted) toast(context, S.i.fail(e), err: true);
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Widget _caption(Pal p, String t) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 20, 0, 8),
+        child: Text(t.toUpperCase(), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, letterSpacing: .6, color: p.mu)),
+      );
+
+  Widget _provBadge(String k) {
+    final ya = k == 'yandex';
+    return Container(
+      width: 36,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: ya ? const Color(0xFFFC3F1D) : const Color(0xFF0077FF),
+        shape: ya ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: ya ? null : BorderRadius.circular(11),
+      ),
+      child: Text(ya ? 'Я' : 'VK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: ya ? 17 : 14)),
+    );
+  }
+
+  Widget _provRow(Pal p, String k, String name) {
+    final on = _links.contains(k);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+      child: Row(children: [
+        _provBadge(k),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: p.tx)),
+            Text(on ? 'Привязан · вход в один клик' : 'Не привязан', style: TextStyle(color: on ? p.ok : p.mu, fontSize: 13)),
+          ]),
+        ),
+        TextButton(
+          onPressed: _busy ? null : () => on ? _unlink(k, name) : _link(k),
+          child: Text(on ? 'Отвязать' : 'Привязать', style: TextStyle(color: on ? p.dng : p.ac, fontWeight: FontWeight.w800)),
+        ),
+      ]),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    if (_loading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))),
+      );
+    }
+    if (_failed) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(children: [
+          Text('Не удалось загрузить данные', style: TextStyle(color: p.mu)),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _loading = true;
+                _failed = false;
+              });
+              _load();
+            },
+            child: Text('Повторить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+          ),
+        ]),
+      );
+    }
+    final shown = [for (final x in _prov) if (_links.contains(x[0]) || _avail.contains(x[0])) x];
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (!_hasPw)
+        Container(
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: p.ac.withOpacity(.10),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: p.ac.withOpacity(.3)),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.info_outline_rounded, color: p.ac, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Пароль не задан', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
+                const SizedBox(height: 2),
+                Text('Вы входите через Яндекс или VK. Создайте пароль, чтобы входить ещё и по почте или телефону.',
+                    style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.4)),
+              ]),
+            ),
+          ]),
+        ),
+      _caption(p, 'Пароль'),
+      Container(
+        decoration: cardDeco(p, r: 20),
+        clipBehavior: Clip.antiAlias,
+        child: Tap(
+          onTap: _busy ? null : () { haptic(); _password(); },
+          scale: .99,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(color: _cPurple.withOpacity(.16), borderRadius: BorderRadius.circular(11)),
+                child: const Icon(Icons.lock_outline_rounded, color: _cPurple, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(_hasPw ? 'Изменить пароль' : 'Создать пароль', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: p.tx)),
+                  Text(_hasPw ? 'Для входа по почте или телефону' : 'Нужен для входа по почте или телефону', style: TextStyle(color: p.mu, fontSize: 13)),
+                ]),
+              ),
+              Icon(Icons.chevron_right, color: p.mu),
+            ]),
+          ),
+        ),
+      ),
+      if (shown.isNotEmpty) ...[
+        _caption(p, 'Вход через сервисы'),
+        Container(
+          decoration: cardDeco(p, r: 20),
+          clipBehavior: Clip.antiAlias,
+          child: Column(children: [
+            for (var i = 0; i < shown.length; i++) ...[
+              if (i > 0) Divider(height: 1, thickness: 1, indent: 64, color: p.bd),
+              _provRow(p, shown[i][0], shown[i][1]),
+            ],
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(6, 10, 6, 0),
+          child: Text('Привяжите сервис, чтобы входить в этот аккаунт без пароля. Аккаунт сервиса можно привязать только к одному профилю.',
+              style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.4)),
+        ),
+      ],
+    ]);
   }
 }
 

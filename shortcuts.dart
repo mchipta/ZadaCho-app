@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
+import 'settings.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'util.dart';
@@ -47,8 +48,15 @@ class _ShortcutHostState extends State<ShortcutHost> with WidgetsBindingObserver
     final q = Uri.parse(link).queryParameters;
     Navigator.of(context).popUntil((r) => r.isFirst);
     final err = q['err'];
+    final lk = q['linked'];
+    if (lk != null && lk.isNotEmpty) { // Яндекс/VK привязан к уже вошедшему аккаунту
+      toast(context, '${lk == 'vk' ? 'VK ID' : 'Яндекс ID'} привязан');
+      _openAcc();
+      return;
+    }
     if (err != null && err.isNotEmpty) {
       toast(context, err);
+      if (q['link'] == '1') _openAcc();
       return;
     }
     final tk = q['ticket'];
@@ -61,6 +69,11 @@ class _ShortcutHostState extends State<ShortcutHost> with WidgetsBindingObserver
     } catch (e) {
       if (mounted) toast(context, e.toString());
     }
+  }
+
+  void _openAcc() {
+    if (!S.i.logged || !mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsSectionPage(section: 'acc', title: 'Вход и пароль')));
   }
 
   bool _askingPhone = false;

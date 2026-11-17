@@ -434,7 +434,7 @@ class _MessagesPageState extends State<MessagesPage> {
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
         decoration: cardDeco(p, r: 16),
         child: Row(children: [
-          _n(d['sup']) == 1 ? const SupportAvatar(size: 46) : Avatar((d['name'] ?? '').toString(), data: (d['avatar'] ?? '').toString(), size: 46),
+          _n(d['sup']) == 1 ? const SupportAvatar(size: 46) : (d['del'] == true ? const DeletedAvatar(size: 46) : Avatar((d['name'] ?? '').toString(), data: (d['avatar'] ?? '').toString(), size: 46)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -446,7 +446,7 @@ class _MessagesPageState extends State<MessagesPage> {
                       child: Text((d['name'] ?? '').toString(),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: d['del'] == true ? p.mu : p.tx, fontStyle: d['del'] == true ? FontStyle.italic : FontStyle.normal)),
                     ),
                     if (d['ver'] == true || _n(d['sup']) == 1) ...[const SizedBox(width: 5), Icon(Icons.verified, size: 16, color: p.ok)],
                   ]),
@@ -542,6 +542,7 @@ class _ChatPageState extends State<ChatPage> {
   int seen = 0, lastTs = 0;
   String name = '', avatar = '';
   bool ver = false;
+  bool deleted = false; // собеседник удалил аккаунт: переписка остаётся, писать ему нельзя
   bool _muted = false;
   bool _emoji = false;
   bool _chipsOff = false;
@@ -614,6 +615,7 @@ class _ChatPageState extends State<ChatPage> {
         if (o.isNotEmpty) {
           name = (o['name'] ?? name).toString();
           ver = o['ver'] == true;
+          deleted = o['del'] == true;
           final av = (o['avatar'] ?? '').toString();
           if (av.isNotEmpty) avatar = av;
         }
@@ -1190,7 +1192,7 @@ class _ChatPageState extends State<ChatPage> {
               }
             },
             itemBuilder: (c) => [
-              if (!_isSup)
+              if (!_isSup && !deleted)
                 PopupMenuItem(
                   value: 'block',
                   child: menuRow(c, Icons.visibility_off_outlined, S.i.isBlocked(widget.pid) ? 'Разблокировать' : 'Заблокировать'),
@@ -1201,10 +1203,10 @@ class _ChatPageState extends State<ChatPage> {
         ],
         title: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: _isSup ? null : () => Navigator.push(
+          onTap: (_isSup || deleted) ? null : () => Navigator.push(
               context, MaterialPageRoute(builder: (_) => ProfilePage(pid: widget.pid, name: name))),
           child: Row(children: [
-            _isSup ? const SupportAvatar(size: 38) : Avatar(name, data: avatar, size: 38),
+            _isSup ? const SupportAvatar(size: 38) : (deleted ? const DeletedAvatar(size: 38) : Avatar(name, data: avatar, size: 38)),
             const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1228,7 +1230,14 @@ class _ChatPageState extends State<ChatPage> {
           child: !loaded
               ? Center(child: err != null ? Text(err!, style: TextStyle(color: p.mu)) : CircularProgressIndicator(color: p.ac))
               : msgs.isEmpty
-                  ? Center(child: Text(_isSup ? 'Задайте вопрос, ответим здесь' : 'Напишите первое сообщение', style: TextStyle(color: p.mu, fontSize: 15)))
+                  ? Center(
+                      child: _isSup
+                          ? Column(mainAxisSize: MainAxisSize.min, children: [
+                              Text('Поддержка работает 24/7', style: TextStyle(color: p.tx, fontSize: 15.5, fontWeight: FontWeight.w800)),
+                              const SizedBox(height: 4),
+                              Text('Пишите, ответим в порядке очереди', style: TextStyle(color: p.mu, fontSize: 14.5)),
+                            ])
+                          : Text('Напишите первое сообщение', style: TextStyle(color: p.mu, fontSize: 15)))
                   : ListView.builder(
                       reverse: true,
                       padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + _barH),
@@ -1241,11 +1250,13 @@ class _ChatPageState extends State<ChatPage> {
           right: 0,
           bottom: 0,
           child: Column(key: _barKey, mainAxisSize: MainAxisSize.min, children: [
-            if (S.i.chatQuickSuggestionsEnabled && !_chipsOff && _editId == null) _quick(p),
+            if (S.i.chatQuickSuggestionsEnabled && !_chipsOff && _editId == null && !_isSup && !deleted) _quick(p),
             if (_editId != null) _editBar(p),
             if (_reply != null) _replyStrip(p),
-            _input(p),
-            if (_emoji) _emojiPanel(p),
+            if (deleted) _deletedBar(p) else ...[
+              _input(p),
+              if (_emoji) _emojiPanel(p),
+            ],
           ]),
         ),
       ])),
@@ -1771,6 +1782,20 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
       ]),
+    );
+  }
+
+  // Вместо поля ввода, когда собеседник удалил аккаунт
+  Widget _deletedBar(Pal p) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(color: p.card.withOpacity(.9), borderRadius: BorderRadius.circular(20), border: Border.all(color: p.bd)),
+        child: Text('Аккаунт удалён. Написать этому пользователю нельзя', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 14)),
+      ),
     );
   }
 

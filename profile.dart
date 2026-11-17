@@ -283,8 +283,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Wrap(spacing: 6, runSpacing: 6, children: [
                     if (ver) const VerifiedBadge(size: 16, label: true),
                     if (innOk) _badge(p, Icons.verified_user_outlined, 'Самозанятый · ИНН', col: p.ok),
-                    if (dn >= 5 && rt >= 4.5) _badge(p, Icons.workspace_premium_outlined, 'Надёжный исполнитель', col: p.ac),
-                  ]),
+                            ]),
                 ]),
               ),
             ]),

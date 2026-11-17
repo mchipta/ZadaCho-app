@@ -681,17 +681,24 @@ class SupportAvatar extends StatelessWidget {
           ),
           child: Icon(Icons.support_agent_rounded, size: size * .58, color: Colors.white),
         ),
-        Positioned(
-          right: -2,
-          bottom: -2,
-          child: Container(
-            width: size * .38,
-            height: size * .38,
-            decoration: BoxDecoration(color: p.card, shape: BoxShape.circle),
-            child: Icon(Icons.verified_rounded, size: size * .34, color: p.ok),
-          ),
-        ),
       ]),
+    );
+  }
+}
+
+// Аватар удалённого аккаунта: нейтральный кружок с силуэтом
+class DeletedAvatar extends StatelessWidget {
+  final double size;
+  const DeletedAvatar({super.key, this.size = 44});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: p.mu.withOpacity(.16)),
+      child: Icon(Icons.person_rounded, size: size * .58, color: p.mu),
     );
   }
 }
