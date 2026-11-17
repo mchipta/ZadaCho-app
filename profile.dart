@@ -498,7 +498,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
               Row(children: [
                 for (var i = 1; i <= 5; i++)
                   GestureDetector(
-                    onTap: () { haptic(); setState(() => stars = i); },
+                    onTap: () { setState(() => stars = i); },
                     child: Padding(
                       padding: const EdgeInsets.only(right: 4),
                       child: Icon(i <= stars ? Icons.star_rounded : Icons.star_outline_rounded, size: 36, color: const Color(0xFFFFB400)),

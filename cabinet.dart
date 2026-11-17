@@ -169,7 +169,7 @@ class _CabinetPageState extends State<CabinetPage> {
             actions: [
               IconButton(
                 tooltip: 'Настройки приложения',
-                onPressed: () { haptic(); Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())); },
+                onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())); },
                 icon: Icon(Icons.settings_outlined, color: pal(context).ac),
               ),
             ],
@@ -261,7 +261,7 @@ class _CabinetPageState extends State<CabinetPage> {
                 right: 16,
                 bottom: navPad(context) + 16,
                 // отдельный слой: кнопка закреплена и не перерисовывается при смене вкладок списка
-                child: RepaintBoundary(child: GradBtn('Разместить объявление', icon: Icons.add_rounded, radius: 18, onTap: () { haptic(); S.i.goTab(2); })),
+                child: RepaintBoundary(child: GradBtn('Разместить объявление', icon: Icons.add_rounded, radius: 18, onTap: () { S.i.goTab(2); })),
               ),
             ]),
     );
@@ -309,7 +309,7 @@ class _CabinetPageState extends State<CabinetPage> {
       box(
         Text('$open', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: p.tx)),
         'объявлений',
-        () { haptic(); S.i.goTab(6); },
+        () { S.i.goTab(6); },
       ),
     ]));
   }
@@ -328,7 +328,6 @@ class _CabinetPageState extends State<CabinetPage> {
     if (miss.isEmpty) return const SizedBox.shrink();
     return Tap(
       onTap: () {
-        haptic();
         if (miss.first == 'Первое объявление') {
           S.i.goTab(2);
         } else {
@@ -482,7 +481,7 @@ class _CabinetPageState extends State<CabinetPage> {
         if (S.i.user?['admin'] == true) ...[
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: () { haptic(); Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage())); },
+            onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage())); },
             icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
             label: const Text('Админ-панель'),
             style: OutlinedButton.styleFrom(
@@ -612,7 +611,6 @@ class _CabinetPageState extends State<CabinetPage> {
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () {
-                haptic();
                 setState(() => ct = t[0]);
                 _markSeen();
               },
@@ -683,7 +681,7 @@ class _CabinetPageState extends State<CabinetPage> {
       return Padding(
         padding: const EdgeInsets.only(right: 8),
         child: GestureDetector(
-          onTap: () { haptic(); setState(() => caf = key); },
+          onTap: () { setState(() => caf = key); },
           child: Container(
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),

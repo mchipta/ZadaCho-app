@@ -154,7 +154,6 @@ class _TopToastHostState extends State<TopToastHost> {
           if ((d.primaryVelocity ?? 0) < 0) _hide();
         },
         onTap: () {
-          haptic();
           final fn = e.onAction;
           _hide();
           if (fn != null) fn();
@@ -253,7 +252,7 @@ class _TapState extends State<Tap> {
       onTapCancel: on ? () => setState(() => down = false) : null,
       onTap: on
           ? () {
-              haptic(widget.strongHaptic);
+              if (widget.strongHaptic) haptic(true);
               widget.onTap!();
             }
           : null,
@@ -1017,7 +1016,6 @@ class AdCard extends StatelessWidget {
 }
 
 void showVerifiedInfo(BuildContext context) {
-  haptic();
   showDialog<void>(
     context: context,
     builder: (c) {
@@ -1029,7 +1027,7 @@ void showVerifiedInfo(BuildContext context) {
         content: Text(
             'Администрация ЗадаЧО проверила документы этого человека и подтвердила его личность. Это снижает риск мошенничества, но деньги заранее всё равно лучше не переводить.',
             style: TextStyle(color: p.mu, height: 1.4)),
-        actions: [TextButton(onPressed: () { haptic(); Navigator.pop(c); }, child: Text('Понятно', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)))],
+        actions: [TextButton(onPressed: () { Navigator.pop(c); }, child: Text('Понятно', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)))],
       );
     },
   );
@@ -1199,7 +1197,7 @@ Future<void> toggleUserBlock(BuildContext context, {required String pid, require
           style: TextStyle(color: p.mu, height: 1.35),
         ),
         actions: [
-          TextButton(onPressed: () { haptic(); Navigator.pop(c, false); }, child: Text('Отмена', style: TextStyle(color: p.mu))),
+          TextButton(onPressed: () { Navigator.pop(c, false); }, child: Text('Отмена', style: TextStyle(color: p.mu))),
           TextButton(
             onPressed: () { haptic(); Navigator.pop(c, true); },
             child: Text('Заблокировать', style: TextStyle(color: p.dng, fontWeight: FontWeight.w800)),
@@ -1515,7 +1513,6 @@ class _CityFieldState extends State<CityField> {
   }
 
   void _pick(String c) {
-    haptic();
     widget.controller.value = TextEditingValue(text: c, selection: TextSelection.collapsed(offset: c.length));
     widget.onChanged?.call(c);
     widget.onPicked?.call(c);
@@ -1611,7 +1608,6 @@ Widget appContextMenu(BuildContext context, EditableTextState state) {
         TextSelectionToolbarTextButton(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           onPressed: () {
-            haptic();
             it.onPressed?.call();
           },
           child: Text(
@@ -1652,7 +1648,7 @@ class EmptyState extends StatelessWidget {
         ],
         if (button != null && onTap != null) ...[
           const SizedBox(height: 16),
-          SizedBox(width: 240, child: GradBtn(button!, onTap: () { haptic(); onTap!(); })),
+          SizedBox(width: 240, child: GradBtn(button!, onTap: () { onTap!(); })),
         ],
       ]),
     );
@@ -1758,7 +1754,6 @@ class OwnerPanel extends StatelessWidget {
     Widget icon(IconData ic, String label, VoidCallback f, {bool on = false, Color? color}) => Expanded(
           child: Tap(
             onTap: () {
-              haptic();
               f();
             },
             scale: .94,

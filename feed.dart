@@ -264,7 +264,6 @@ class _FeedPageState extends State<FeedPage> {
 
   Widget _fChip(Pal p, String label, bool on, VoidCallback f, {IconData? icon, Color? hue}) => Tap(
         onTap: () {
-          haptic();
           f();
         },
         scale: .96,
@@ -295,7 +294,6 @@ class _FeedPageState extends State<FeedPage> {
         padding: const EdgeInsets.only(right: 8),
         child: Tap(
           onTap: () {
-            haptic();
             f();
           },
           scale: .96,
@@ -425,7 +423,6 @@ class _FeedPageState extends State<FeedPage> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    haptic();
                     upd(() {
                       _resetFilters();
                       _cat = '';
@@ -619,7 +616,6 @@ class _FeedPageState extends State<FeedPage> {
 
   Widget _whereCard(Pal p, BuildContext c, void Function(VoidCallback) upd) => Tap(
         onTap: () {
-          haptic();
           _openWhere(c, upd);
         },
         scale: .98,
@@ -685,7 +681,6 @@ class _FeedPageState extends State<FeedPage> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    haptic();
                     u(() {
                       _city = '';
                       _rad = '';
@@ -742,7 +737,6 @@ class _FeedPageState extends State<FeedPage> {
                     onTap: !canRadius
                         ? () => toast(c, 'Сначала выберите город или включите «Рядом со мной»')
                         : () async {
-                            haptic();
                             final r = await Navigator.of(c).push<RadiusResult>(MaterialPageRoute(
                               builder: (_) => RadiusPage(city: _city, radius: _rad, center: _ctr, count: _countWith),
                             ));
@@ -1125,7 +1119,6 @@ class _FeedPageState extends State<FeedPage> {
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () {
-                        haptic();
                         _q.clear();
                         setState(() {});
                       },
@@ -1188,7 +1181,6 @@ class _FeedPageState extends State<FeedPage> {
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () {
-                            haptic();
                             _q.value = TextEditingValue(
                               text: sugs[i],
                               selection: TextSelection.collapsed(offset: sugs[i].length),

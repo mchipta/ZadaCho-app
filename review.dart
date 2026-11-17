@@ -94,7 +94,6 @@ class _ReviewSheetState extends State<_ReviewSheet> {
             for (var i = 1; i <= 5; i++)
               GestureDetector(
                 onTap: () {
-                  haptic();
                   setState(() => _stars = i);
                 },
                 child: Padding(

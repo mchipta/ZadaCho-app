@@ -270,7 +270,6 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _me() async {
-    haptic();
     final r = await Near.i.locate();
     if (!mounted) return;
     final me = Near.i.pos;
@@ -978,7 +977,6 @@ class _RadiusPageState extends State<RadiusPage> {
         padding: const EdgeInsets.only(right: 8),
         child: Tap(
           onTap: () {
-            haptic();
             setState(() => _rad = v);
             _fit();
           },

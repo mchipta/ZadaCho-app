@@ -23,7 +23,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          haptic();
           setState(() => _t = i);
         },
         child: Container(
@@ -91,7 +90,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTap: () {
-                                haptic();
                                 S.i.pendingSearch = s;
                                 if (!widget.embedded) Navigator.pop(context);
                                 S.i.goTab(1);

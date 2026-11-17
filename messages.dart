@@ -169,7 +169,6 @@ class _MessagesPageState extends State<MessagesPage> {
                       tooltip: 'Поиск по сообщениям',
                       icon: Icon(Icons.search_rounded, color: p.ac),
                       onPressed: () {
-                        haptic();
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const MsgSearchPage()));
                       },
                     ),
@@ -291,7 +290,6 @@ class _MessagesPageState extends State<MessagesPage> {
 
   Widget _filterChip(Pal p, String label, bool on, VoidCallback f) => Tap(
         onTap: () {
-          haptic();
           f();
         },
         scale: .96,
@@ -413,7 +411,6 @@ class _MessagesPageState extends State<MessagesPage> {
     return GestureDetector(
       onLongPress: () => _chatMenu(d),
       onTap: () async {
-        haptic();
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -983,7 +980,7 @@ class _ChatPageState extends State<ChatPage> {
               for (final e in kEmoji)
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () { haptic(); _addEmoji(e); },
+                  onTap: () { _addEmoji(e); },
                   child: Center(child: Text(e, style: const TextStyle(fontSize: 26))),
                 ),
             ],
@@ -1381,7 +1378,6 @@ class _ChatPageState extends State<ChatPage> {
           const SizedBox(height: 8),
           Tap(
             onTap: () {
-              haptic();
               f!();
             },
             scale: .98,
@@ -1918,7 +1914,7 @@ class _ChatPageState extends State<ChatPage> {
                       ? const Padding(padding: EdgeInsets.all(11), child: CircularProgressIndicator(strokeWidth: 2.4))
                       : GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: _editId != null ? null : () { haptic(); _attach(); },
+                          onTap: _editId != null ? null : () { _attach(); },
                           child: Icon(Icons.attach_file_rounded, color: p.mu),
                         ),
                 ),
@@ -1928,7 +1924,6 @@ class _ChatPageState extends State<ChatPage> {
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
-                      haptic();
                       FocusManager.instance.primaryFocus?.unfocus();
                       setState(() => _emoji = !_emoji);
                     },

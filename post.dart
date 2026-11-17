@@ -144,7 +144,6 @@ class _PostScreenState extends State<PostScreen> {
   }
 
   void _set(VoidCallback f) {
-    haptic();
     setState(f);
     _saveSoon();
   }
@@ -636,7 +635,7 @@ class _PostScreenState extends State<PostScreen> {
             ),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () { haptic(); _go(i); },
+            onTap: () { _go(i); },
             child: SizedBox(
               width: 72,
               child: Column(children: [
@@ -1002,7 +1001,7 @@ class _PostScreenState extends State<PostScreen> {
   }
 
   Widget _stepBtn(Pal p, IconData i, VoidCallback? f) => GestureDetector(
-        onTap: f == null ? null : () { haptic(); f(); },
+        onTap: f == null ? null : () { f(); },
         child: Container(
           width: 46,
           height: 46,

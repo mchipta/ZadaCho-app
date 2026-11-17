@@ -169,7 +169,6 @@ class _AuthPageState extends State<AuthPage> {
   String get _em => email.text.trim().toLowerCase();
 
   void _mode(AMode x) {
-    haptic();
     setState(() {
       m = x;
       err = null;
@@ -476,7 +475,7 @@ class _AuthPageState extends State<AuthPage> {
           suffix: secret
               ? IconButton(
                   icon: Icon(show ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: p.mu),
-                  onPressed: () { haptic(); setState(() => show = !show); })
+                  onPressed: () { setState(() => show = !show); })
               : null,
         ),
       ),

@@ -694,7 +694,6 @@ class S extends ChangeNotifier {
 
   Future<void> setFeedMode(int m) async {
     if (m == feedMode) return;
-    vibrate();
     feedMode = m;
     notifyListeners();
     await prefs.setInt('feed_mode', m);

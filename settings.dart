@@ -307,7 +307,7 @@ class _SettingsBodyState extends State<SettingsBody> {
 
   Widget _hubRow(Pal p, IconData icon, Color k, String title, String sub, VoidCallback f) {
     return Tap(
-      onTap: busy ? null : () { haptic(); f(); },
+      onTap: busy ? null : () { f(); },
       scale: .99,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -569,7 +569,7 @@ class _SettingsBodyState extends State<SettingsBody> {
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           if (busy) LinearProgressIndicator(color: p.ac, backgroundColor: p.bd, minHeight: 3),
           if (widget.profileOnly) GestureDetector(
-            onTap: busy ? null : () { haptic(); _avatar(); },
+            onTap: busy ? null : () { _avatar(); },
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: cardDeco(p, r: 20),
@@ -1064,7 +1064,7 @@ class _AccountAuthCardState extends State<_AccountAuthCard> {
         decoration: cardDeco(p, r: 20),
         clipBehavior: Clip.antiAlias,
         child: Tap(
-          onTap: _busy ? null : () { haptic(); _password(); },
+          onTap: _busy ? null : () { _password(); },
           scale: .99,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1365,7 +1365,6 @@ class _AppStampState extends State<AppStamp> {
 
   Future<void> _check() async {
     if (_busy) return;
-    haptic();
     setState(() => _busy = true);
     await runUpdateCheck(context);
     if (mounted) setState(() => _busy = false);
@@ -1428,7 +1427,6 @@ class _RegionPageState extends State<RegionPage> {
   }
 
   Future<void> _locate() async {
-    haptic();
     setState(() => _busy = true);
     final r = await Near.i.locate();
     String? city;
@@ -1464,7 +1462,6 @@ class _RegionPageState extends State<RegionPage> {
       final on = _rad == v;
       return Tap(
         onTap: () {
-          haptic();
           setState(() => _rad = v);
         },
         scale: .96,
@@ -1535,7 +1532,6 @@ class _RegionPageState extends State<RegionPage> {
             if (hasCity)
               TextButton(
                 onPressed: () {
-                  haptic();
                   setState(() {
                     _c.clear();
                     _rad = '';
@@ -1609,7 +1605,6 @@ class _RegionSheetBodyState extends State<_RegionSheetBody> {
   }
 
   Future<void> _locate() async {
-    haptic();
     setState(() => _busy = true);
     final r = await Near.i.locate();
     String? city;

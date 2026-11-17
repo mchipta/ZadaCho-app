@@ -126,7 +126,6 @@ class _AdPageState extends State<AdPage> {
   }
 
   Future<void> _openMoreMenu(Pal p, bool mine) async {
-    haptic();
     final renewable = ad.status == 'open' && DateTime.now().millisecondsSinceEpoch - ad.upd > 14 * 86400000;
     final ctx = _menuKey.currentContext;
     final box = ctx?.findRenderObject() as RenderBox?;
@@ -161,7 +160,6 @@ class _AdPageState extends State<AdPage> {
       ],
     );
     if (!mounted || v == null) return;
-    haptic();
     if (v == 'report') _report();
     if (v == 'share') showShare(context, ad);
     if (v == 'edit') _ownEdit();
@@ -543,12 +541,10 @@ class _AdPageState extends State<AdPage> {
             child: PageView.builder(
               itemCount: ad.imgs.length,
               onPageChanged: (i) {
-                haptic();
                 setState(() => page = i);
               },
               itemBuilder: (c, i) => GestureDetector(
                 onTap: () {
-                  haptic();
                   Navigator.push(c, MaterialPageRoute(builder: (_) => PhotoViewer(ids: ad.imgs, index: i)));
                 },
                 child: CachedNetworkImage(
