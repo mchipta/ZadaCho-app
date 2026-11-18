@@ -228,6 +228,7 @@ class _AuthPageState extends State<AuthPage> {
         await _run(() async {
           await Api.call('sendCode', {'email': _em, 'kind': 'reg'});
           code.clear();
+          if (mounted) toast(context, 'Код отправлен. Проверьте почту $_em');
           setState(() {
             m = AMode.regCode;
             info = 'Код отправлен на $_em.\nЕсли письмо не приходит, проверьте папку «Спам».';
@@ -257,6 +258,7 @@ class _AuthPageState extends State<AuthPage> {
           await Api.call('sendCode', {'email': _em, 'kind': 'reset'});
           code.clear();
           pass.clear();
+          if (mounted) toast(context, 'Код отправлен. Проверьте почту $_em');
           setState(() {
             m = AMode.resetCode;
             info = 'Если такой аккаунт есть, код отправлен на $_em.\nЕсли письмо не приходит, проверьте папку «Спам».';
@@ -297,7 +299,7 @@ class _AuthPageState extends State<AuthPage> {
     final titles = {
       AMode.login: 'Вход',
       AMode.reg: 'Регистрация',
-      AMode.regCode: 'Подтверждение почты',
+      AMode.regCode: 'Регистрация',
       AMode.reset: 'Сброс пароля',
       AMode.resetCode: 'Новый пароль',
     };
@@ -315,19 +317,26 @@ class _AuthPageState extends State<AuthPage> {
         child: SmoothSwitch(
           child: ListView(
             key: ValueKey(m),padding: const EdgeInsets.fromLTRB(20, 0, 20, 24), children: [
-          const Align(alignment: Alignment.centerLeft, child: Logo(size: 48)),
+          Align(alignment: Alignment.centerLeft, child: isCode ? const AuthTile(Icons.mail_outline_rounded) : const Logo(size: 48)),
           const SizedBox(height: 16),
           Text(titles[m]!, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: p.tx)),
           const SizedBox(height: 6),
-          Text(
-              m == AMode.login
-                  ? 'Войдите, чтобы откликаться и размещать объявления'
-                  : m == AMode.reg
-                      ? 'Создайте аккаунт — это займёт минуту'
-                      : m == AMode.reset
-                          ? 'Пришлём код на вашу почту'
-                          : 'Введите код из письма',
-              style: TextStyle(color: p.mu, fontSize: 15)),
+          if (isCode)
+            Text.rich(
+              TextSpan(style: TextStyle(color: p.mu, fontSize: 15, height: 1.5), children: [
+                TextSpan(text: m == AMode.regCode ? 'Остался один шаг. Отправили 6 цифр на ' : 'Отправили 6 цифр на '),
+                WidgetSpan(alignment: PlaceholderAlignment.middle, child: MailChip(_em)),
+                TextSpan(text: m == AMode.regCode ? '. Он действует 10 минут.' : '. Введите код и придумайте новый пароль.'),
+              ]),
+            )
+          else
+            Text(
+                m == AMode.login
+                    ? 'Войдите, чтобы откликаться и размещать объявления'
+                    : m == AMode.reg
+                        ? 'Создайте аккаунт — это займёт минуту'
+                        : 'Пришлём код на вашу почту',
+                style: TextStyle(color: p.mu, fontSize: 15)),
           const SizedBox(height: 20),
           if (m == AMode.reg) ...[
             _field(name, 'Имя', icon: Icons.person_outline, cap: TextCapitalization.words),
@@ -335,8 +344,9 @@ class _AuthPageState extends State<AuthPage> {
           ],
           if (!isCode)
             _field(email, m == AMode.login ? 'Почта или телефон' : 'Почта', icon: Icons.mail_outline, type: m == AMode.login ? TextInputType.emailAddress : TextInputType.emailAddress),
-          if (isCode) _field(code, 'Код из письма', icon: Icons.pin_outlined, type: TextInputType.number),
+          if (isCode) Padding(padding: const EdgeInsets.only(bottom: 4), child: OtpField(controller: code, autofocus: true)),
           if (isCode) ResendLink(onResend: () => Api.call('sendCode', {'email': _em, 'kind': m == AMode.regCode ? 'reg' : 'reset'})),
+          if (isCode) const Padding(padding: EdgeInsets.only(bottom: 14), child: SpamNote()),
           if (m == AMode.login || m == AMode.reg || m == AMode.resetCode) ...[
             _field(pass, m == AMode.resetCode ? 'Новый пароль' : 'Пароль', icon: Icons.lock_outline, secret: true),
             if (m == AMode.reg || m == AMode.resetCode) PwStrength(pass.text),
@@ -354,9 +364,9 @@ class _AuthPageState extends State<AuthPage> {
               _link(p, 'согласие на обработку персональных данных', _rConsent),
             ]),
           ],
-          if (info != null) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(info!, style: TextStyle(color: p.ok, fontWeight: FontWeight.w600))),
+          if (info != null && !isCode) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(info!, style: TextStyle(color: p.ok, fontWeight: FontWeight.w600))),
           if (err != null) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(err!, style: TextStyle(color: p.dng, fontWeight: FontWeight.w600))),
-          GradBtn(btn[m]!, busy: busy, onTap: _submit),
+          GradBtn(btn[m]!, busy: busy, onTap: _submit, height: isCode ? 56 : 46, radius: isCode ? 16 : 12),
           const SizedBox(height: 10),
           if ((m == AMode.login || m == AMode.reg) && _soc.isNotEmpty) ...[
             Row(children: [
@@ -385,7 +395,9 @@ class _AuthPageState extends State<AuthPage> {
             ),
             Center(child: TextButton(onPressed: () => _mode(AMode.reset), child: Text('Забыли пароль?', style: TextStyle(color: p.mu)))),
             Center(child: TextButton(onPressed: () => _mode(AMode.reg), child: Text('Нет аккаунта? Зарегистрироваться', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)))),
-          ] else
+          ] else if (isCode)
+            Center(child: TextButton(onPressed: () => _mode(m == AMode.regCode ? AMode.reg : AMode.reset), child: Text('Изменить почту', style: TextStyle(color: p.mu, fontWeight: FontWeight.w600))))
+          else
             Center(child: TextButton(onPressed: () => _mode(AMode.login), child: Text('Назад ко входу', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)))),
         ]),
         ),

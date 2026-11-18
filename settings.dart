@@ -29,30 +29,58 @@ class FieldSpec {
   final bool digitsOnly;
   final bool strength; // показывать надёжность пароля
   final int? matchWith; // индекс поля, с которым сверяем («Повторите пароль»)
-  const FieldSpec(this.label, {this.initial = '', this.secret = false, this.multi = false, this.type, this.maxLen, this.digitsOnly = false, this.strength = false, this.matchWith});
+  final bool otp; // код из письма в 6 клетках
+  const FieldSpec(this.label, {this.initial = '', this.secret = false, this.multi = false, this.type, this.maxLen, this.digitsOnly = false, this.strength = false, this.matchWith, this.otp = false});
 }
 
+/// Ответ «Назад» из окна шага 2 (см. askFields(back: true))
+const kBackMarker = '__back__';
+
+/// Единое окно ввода: на телефоне нижняя шторка, на широком экране — окно по центру (как на сайте).
 Future<List<String>?> askFields(BuildContext context, String title, List<FieldSpec> fields,
-    {String ok = 'Сохранить', String? hint, Future<void> Function(List<String>)? onSubmit, Future<void> Function()? resend}) {
-  return showDialog<List<String>>(
+    {String ok = 'Сохранить',
+    String? hint,
+    String? chip,
+    String? chipAfter,
+    IconData? icon,
+    int? step,
+    bool back = false,
+    Future<void> Function(List<String>)? onSubmit,
+    Future<void> Function()? resend}) {
+  Widget build(bool wide) => _FieldsDialog(
+      title: title, fields: fields, ok: ok, hint: hint, chip: chip, chipAfter: chipAfter, icon: icon, step: step, back: back, wide: wide, onSubmit: onSubmit, resend: resend);
+  if (MediaQuery.of(context).size.width >= 720) {
+    return showDialog<List<String>>(context: context, builder: (c) => build(true));
+  }
+  final p = pal(context);
+  return showModalBottomSheet<List<String>>(
     context: context,
-    builder: (c) => _FieldsDialog(title: title, fields: fields, ok: ok, hint: hint, onSubmit: onSubmit, resend: resend),
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: p.card,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+    builder: (c) => build(false),
   );
 }
 
 class _FieldsDialog extends StatefulWidget {
   final String title, ok;
-  final String? hint;
+  final String? hint, chip, chipAfter;
+  final IconData? icon;
+  final int? step;
+  final bool back, wide;
   final List<FieldSpec> fields;
   final Future<void> Function(List<String>)? onSubmit;
   final Future<void> Function()? resend;
-  const _FieldsDialog({required this.title, required this.fields, required this.ok, this.hint, this.onSubmit, this.resend});
+  const _FieldsDialog(
+      {required this.title, required this.fields, required this.ok, this.hint, this.chip, this.chipAfter, this.icon, this.step, this.back = false, this.wide = false, this.onSubmit, this.resend});
   @override
   State<_FieldsDialog> createState() => _FieldsDialogState();
 }
 
 class _FieldsDialogState extends State<_FieldsDialog> {
   late final List<TextEditingController> cs = [for (final f in widget.fields) TextEditingController(text: f.initial)];
+  late final List<bool> _shown = List.filled(widget.fields.length, false);
   bool _busy = false;
   String? _err;
 
@@ -98,22 +126,65 @@ class _FieldsDialogState extends State<_FieldsDialog> {
     super.dispose();
   }
 
+  InputDecoration _deco(Pal p, FieldSpec f, int i) {
+    OutlineInputBorder ob(Color c, [double w = 1.5]) => OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: c, width: w));
+    return InputDecoration(
+      labelText: f.label,
+      filled: true,
+      fillColor: p.bg2,
+      labelStyle: TextStyle(color: p.mu),
+      floatingLabelStyle: TextStyle(color: p.ac),
+      counterText: '',
+      contentPadding: const EdgeInsets.fromLTRB(16, 20, 12, 18),
+      enabledBorder: ob(p.bd),
+      border: ob(p.bd),
+      focusedBorder: ob(p.ac),
+      suffixIcon: f.secret
+          ? IconButton(
+              icon: Icon(_shown[i] ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: p.mu, size: 22),
+              onPressed: () => setState(() => _shown[i] = !_shown[i]))
+          : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
-    return AlertDialog(
-      backgroundColor: p.card,
-      title: Text(widget.title, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
-      content: SingleChildScrollView(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          if (widget.hint != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(widget.hint!, style: TextStyle(color: p.mu))),
-          for (var i = 0; i < widget.fields.length; i++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                TextField(contextMenuBuilder: appContextMenu, 
+    final mq = MediaQuery.of(context);
+    final hasOtp = widget.fields.any((f) => f.otp);
+    final content = SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(20, widget.wide ? 28 : 10, 20, 22 + (widget.wide ? 0 : mq.padding.bottom)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        if (!widget.wide) Center(child: Container(width: 40, height: 5, margin: const EdgeInsets.only(bottom: 14), decoration: BoxDecoration(color: p.bd, borderRadius: BorderRadius.circular(3)))),
+        AuthTile(widget.icon ?? (hasOtp ? Icons.mail_outline_rounded : Icons.edit_outlined)),
+        const SizedBox(height: 16),
+        Text(widget.title, style: TextStyle(color: p.tx, fontSize: 26, height: 1.15, fontWeight: FontWeight.w800)),
+        if (widget.hint != null) ...[
+          const SizedBox(height: 6),
+          Text.rich(
+            TextSpan(style: TextStyle(color: p.mu, fontSize: 15, height: 1.5), children: [
+              TextSpan(text: widget.hint!),
+              if (widget.chip != null) ...[
+                const TextSpan(text: ' '),
+                WidgetSpan(alignment: PlaceholderAlignment.middle, child: MailChip(widget.chip!)),
+              ],
+              if (widget.chipAfter != null) TextSpan(text: widget.chipAfter!),
+            ]),
+          ),
+        ],
+        if (widget.step != null) StepBar(widget.step!),
+        SizedBox(height: widget.step != null ? 6 : 18),
+        for (var i = 0; i < widget.fields.length; i++)
+          Padding(
+            padding: EdgeInsets.only(bottom: widget.fields[i].otp ? 0 : 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              if (widget.fields[i].otp)
+                Padding(padding: const EdgeInsets.only(top: 12), child: OtpField(controller: cs[i], enabled: !_busy, autofocus: true))
+              else
+                TextField(
+                  contextMenuBuilder: appContextMenu,
                   controller: cs[i],
-                  obscureText: widget.fields[i].secret,
+                  obscureText: widget.fields[i].secret && !_shown[i],
                   keyboardType: widget.fields[i].type,
                   enabled: !_busy,
                   maxLength: widget.fields[i].maxLen,
@@ -121,27 +192,38 @@ class _FieldsDialogState extends State<_FieldsDialog> {
                   minLines: widget.fields[i].multi ? 3 : 1,
                   maxLines: widget.fields[i].multi ? 5 : 1,
                   autocorrect: !widget.fields[i].secret,
-                  style: TextStyle(color: p.tx),
-                  decoration: deco(context, widget.fields[i].label).copyWith(counterText: ''),
+                  enableSuggestions: !widget.fields[i].secret,
+                  style: TextStyle(color: p.tx, fontSize: 17),
+                  decoration: _deco(p, widget.fields[i], i),
                 ),
-                if (widget.fields[i].strength) Padding(padding: const EdgeInsets.only(top: 8), child: PwStrength(cs[i].text)),
-                if (widget.fields[i].matchWith != null) Padding(padding: const EdgeInsets.only(top: 8), child: PwMatch(cs[widget.fields[i].matchWith!].text, cs[i].text)),
-              ]),
-            ),
-          if (widget.resend != null) ResendLink(onResend: widget.resend!),
-          if (_err != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(_err!, style: TextStyle(color: p.dng, fontSize: 13))),
-        ]),
-      ),
-      actions: [
-        TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: Text('Отмена', style: TextStyle(color: p.mu))),
-        TextButton(
-          onPressed: _busy ? null : _submit,
-          child: _busy
-              ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.ac))
-              : Text(widget.ok, style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+              if (widget.fields[i].strength) Padding(padding: const EdgeInsets.only(top: 10), child: PwStrength(cs[i].text)),
+              if (widget.fields[i].matchWith != null) Padding(padding: const EdgeInsets.only(top: 2), child: PwMatch(cs[widget.fields[i].matchWith!].text, cs[i].text)),
+            ]),
+          ),
+        if (widget.resend != null) ResendLink(onResend: widget.resend!),
+        if (hasOtp) const SpamNote(),
+        if (_err != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_err!, style: TextStyle(color: p.dng, fontSize: 13.5, fontWeight: FontWeight.w600))),
+        const SizedBox(height: 20),
+        GradBtn(widget.ok, busy: _busy, height: 56, radius: 16, onTap: _busy ? null : _submit),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 48,
+          child: TextButton(
+            onPressed: _busy ? null : () => Navigator.pop(context, widget.back ? const [kBackMarker] : null),
+            child: Text(widget.back ? 'Назад' : 'Отмена', style: TextStyle(color: p.mu, fontSize: 15, fontWeight: FontWeight.w600)),
+          ),
         ),
-      ],
+      ]),
     );
+    if (widget.wide) {
+      return Dialog(
+        backgroundColor: p.card,
+        insetPadding: const EdgeInsets.all(24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 460), child: content),
+      );
+    }
+    return Padding(padding: EdgeInsets.only(bottom: mq.viewInsets.bottom), child: content);
   }
 }
 
@@ -905,36 +987,52 @@ class _AccountAuthCardState extends State<_AccountAuthCard> {
       if (r != null && mounted) toast(context, 'Пароль изменён. На других устройствах вы вышли из аккаунта');
       return;
     }
-    final r = await askFields(
-      context,
-      'Создать пароль',
-      [
-        const FieldSpec('Новый пароль (от 6 символов)', secret: true, strength: true),
-        const FieldSpec('Повторите пароль', secret: true, matchWith: 0),
-      ],
-      ok: 'Получить код',
-      hint: 'Чтобы входить по почте или телефону. Код подтверждения придёт на ${S.i.login}',
-      onSubmit: (v) async {
-        if (v[0].length < 6) throw ApiError('Пароль должен быть не короче 6 символов');
-        if (v[0] != v[1]) throw ApiError('Пароли не совпадают');
-        await Api.call('sendCode', {'email': S.i.login, 'kind': 'pw'});
-      },
-    );
-    if (r == null || !mounted) return;
-    final pw = r[0];
-    final c = await askFields(
-      context,
-      'Подтверждение',
-      [FieldSpec('Код из письма', type: TextInputType.number, maxLen: 6, digitsOnly: true)],
-      ok: 'Создать пароль',
-      resend: () => Api.call('sendCode', {'email': S.i.login, 'kind': 'pw'}),
-      hint: 'Код отправлен на ${S.i.login}.\nЕсли письмо не приходит, проверьте папку «Спам».',
-      onSubmit: (v) async {
-        if (v[0].isEmpty) throw ApiError('Введите код из письма');
-        await Api.call('setPw', {'code': v[0], 'hash': sha256Hex('${S.i.login}:$pw')});
-      },
-    );
-    if (c == null || !mounted) return;
+    var sent = false;
+    while (true) {
+      final r = await askFields(
+        context,
+        'Создать пароль',
+        [
+          const FieldSpec('Новый пароль (от 6 символов)', secret: true, strength: true),
+          const FieldSpec('Повторите пароль', secret: true, matchWith: 0),
+        ],
+        ok: 'Получить код',
+        icon: Icons.lock_outline_rounded,
+        step: 1,
+        hint: 'Так вы сможете входить по почте или телефону. Код подтверждения придёт на',
+        chip: S.i.login,
+        onSubmit: (v) async {
+          if (v[0].length < 6) throw ApiError('Пароль должен быть не короче 6 символов');
+          if (v[0] != v[1]) throw ApiError('Пароли не совпадают');
+          if (!sent) {
+            await Api.call('sendCode', {'email': S.i.login, 'kind': 'pw'});
+            sent = true;
+          }
+        },
+      );
+      if (r == null || !mounted) return;
+      final pw = r[0];
+      final c = await askFields(
+        context,
+        'Код из письма',
+        [const FieldSpec('', otp: true, type: TextInputType.number, maxLen: 6, digitsOnly: true)],
+        ok: 'Создать пароль',
+        icon: Icons.mail_outline_rounded,
+        step: 2,
+        back: true,
+        hint: 'Отправили 6 цифр на',
+        chip: S.i.login,
+        chipAfter: '. Он действует 10 минут.',
+        resend: () => Api.call('sendCode', {'email': S.i.login, 'kind': 'pw'}),
+        onSubmit: (v) async {
+          if (v[0].length < 6) throw ApiError('Введите 6 цифр из письма');
+          await Api.call('setPw', {'code': v[0], 'hash': sha256Hex('${S.i.login}:$pw')});
+        },
+      );
+      if (c == null || !mounted) return;
+      if (c.length == 1 && c[0] == kBackMarker) continue;
+      break;
+    }
     setState(() => _hasPw = true);
     toast(context, 'Пароль создан. Теперь можно входить по почте и паролю');
   }

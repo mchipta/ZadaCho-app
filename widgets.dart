@@ -500,8 +500,8 @@ class GradBtn extends StatelessWidget {
   final IconData? icon;
   final String? ico;
   final bool busy;
-  final double radius;
-  const GradBtn(this.text, {super.key, this.onTap, this.icon, this.ico, this.busy = false, this.radius = 12});
+  final double radius, height;
+  const GradBtn(this.text, {super.key, this.onTap, this.icon, this.ico, this.busy = false, this.radius = 12, this.height = 46});
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
@@ -511,7 +511,7 @@ class GradBtn extends StatelessWidget {
         onTap: busy ? null : onTap,
         scale: .96,
         child: Container(
-          height: 46,
+          height: height,
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
@@ -2076,17 +2076,173 @@ class _ResendLinkState extends State<ResendLink> {
   Widget build(BuildContext context) {
     final p = pal(context);
     final can = _left == 0 && !_busy;
-    final txt = _left > 0 ? 'Отправить код ещё раз через 0:${_left.toString().padLeft(2, '0')}' : 'Отправить код ещё раз';
+    final tm = '${_left ~/ 60}:${(_left % 60).toString().padLeft(2, '0')}';
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: Alignment.center,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: can ? _go : null,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(txt, style: TextStyle(color: can ? p.ac : p.mu, fontWeight: FontWeight.w700, fontSize: 14)),
+          padding: const EdgeInsets.only(top: 14, bottom: 2),
+          child: _left > 0
+              ? Text.rich(TextSpan(style: TextStyle(color: p.mu, fontSize: 14, fontWeight: FontWeight.w500), children: [
+                  const TextSpan(text: 'Отправить код ещё раз через '),
+                  TextSpan(text: tm, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+                ]))
+              : Text('Отправить код ещё раз', style: TextStyle(color: can ? p.ac : p.mu, fontWeight: FontWeight.w700, fontSize: 14)),
         ),
       ),
+    );
+  }
+}
+
+
+/// Плитка с иконкой вверху окон «пароль / код» (как на сайте)
+class AuthTile extends StatelessWidget {
+  final IconData icon;
+  const AuthTile(this.icon, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [p.ac, p.ac2]),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Icon(icon, color: Colors.white, size: 26),
+    );
+  }
+}
+
+/// Почта «таблеткой» внутри текста
+class MailChip extends StatelessWidget {
+  final String text;
+  const MailChip(this.text, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(color: p.bg2, border: Border.all(color: p.bd), borderRadius: BorderRadius.circular(99)),
+      child: Text(text, style: TextStyle(color: p.tx, fontWeight: FontWeight.w600, fontSize: 14)),
+    );
+  }
+}
+
+/// «Шаг 1 из 2» + две полоски
+class StepBar extends StatelessWidget {
+  final int step;
+  const StepBar(this.step, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    Widget seg(bool on) => Expanded(child: Container(height: 4, decoration: BoxDecoration(color: on ? p.ac : p.bd, borderRadius: BorderRadius.circular(2))));
+    return Padding(
+      padding: const EdgeInsets.only(top: 18, bottom: 6),
+      child: Row(children: [
+        Text('Шаг $step из 2', style: TextStyle(color: p.mu, fontSize: 13)),
+        const SizedBox(width: 10),
+        seg(true),
+        const SizedBox(width: 6),
+        seg(step == 2),
+      ]),
+    );
+  }
+}
+
+/// Спокойная подсказка про папку «Спам»
+class SpamNote extends StatelessWidget {
+  const SpamNote({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(14)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(Icons.info_outline_rounded, size: 20, color: p.ac),
+        const SizedBox(width: 10),
+        Expanded(child: Text('Письмо может идти до минуты. Если его нет, загляните в «Спам».', style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.4))),
+      ]),
+    );
+  }
+}
+
+/// Код из письма: 6 клеток поверх обычного поля (вставка и автоподстановка работают)
+class OtpField extends StatefulWidget {
+  final TextEditingController controller;
+  final bool enabled, autofocus;
+  const OtpField({super.key, required this.controller, this.enabled = true, this.autofocus = false});
+  @override
+  State<OtpField> createState() => _OtpFieldState();
+}
+
+class _OtpFieldState extends State<OtpField> {
+  final _f = FocusNode();
+  void _r() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_r);
+    _f.addListener(_r);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_r);
+    _f.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final v = widget.controller.text;
+    final cur = _f.hasFocus ? (v.length > 5 ? 5 : v.length) : -1;
+    return SizedBox(
+      height: 60,
+      child: Stack(children: [
+        Row(children: [
+          for (var i = 0; i < 6; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: p.bg2,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: i == cur ? p.ac : p.bd, width: 1.5),
+                ),
+                child: Text(i < v.length ? v[i] : '', style: TextStyle(color: p.tx, fontSize: 26, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ]),
+        Positioned.fill(
+          child: Opacity(
+            opacity: 0,
+            child: TextField(
+              controller: widget.controller,
+              focusNode: _f,
+              autofocus: widget.autofocus,
+              enabled: widget.enabled,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              autofillHints: const [AutofillHints.oneTimeCode],
+              showCursor: false,
+              decoration: const InputDecoration(border: InputBorder.none, counterText: ''),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }

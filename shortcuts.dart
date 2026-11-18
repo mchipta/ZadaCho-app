@@ -84,7 +84,20 @@ class _ShortcutHostState extends State<ShortcutHost> with WidgetsBindingObserver
     if (digitsOnly(S.i.phone).length >= 8) return;
     _askingPhone = true;
     try {
-      await showDialog<void>(context: context, barrierDismissible: false, builder: (c) => const _PhoneAsk());
+      if (MediaQuery.of(context).size.width >= 720) {
+        await showDialog<void>(context: context, barrierDismissible: false, builder: (c) => const _PhoneAsk(wide: true));
+      } else {
+        await showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          isDismissible: false,
+          enableDrag: false,
+          backgroundColor: pal(context).card,
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+          builder: (c) => const _PhoneAsk(),
+        );
+      }
     } finally {
       _askingPhone = false;
     }
@@ -125,7 +138,8 @@ class _ShortcutHostState extends State<ShortcutHost> with WidgetsBindingObserver
 
 
 class _PhoneAsk extends StatefulWidget {
-  const _PhoneAsk();
+  final bool wide;
+  const _PhoneAsk({this.wide = false});
   @override
   State<_PhoneAsk> createState() => _PhoneAskState();
 }
@@ -178,32 +192,57 @@ class _PhoneAskState extends State<_PhoneAsk> {
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
+    final mq = MediaQuery.of(context);
+    OutlineInputBorder ob(Color c) => OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: c, width: 1.5));
+    final content = SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(20, widget.wide ? 28 : 10, 20, 22 + (widget.wide ? 0 : mq.padding.bottom)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        if (!widget.wide) Center(child: Container(width: 40, height: 5, margin: const EdgeInsets.only(bottom: 14), decoration: BoxDecoration(color: p.bd, borderRadius: BorderRadius.circular(3)))),
+        const AuthTile(Icons.smartphone_rounded),
+        const SizedBox(height: 16),
+        Text('Укажите номер телефона', style: TextStyle(color: p.tx, fontSize: 26, height: 1.15, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        Text('Сервис входа не передал ваш номер. Укажите его, чтобы с вами могли связаться по объявлениям.', style: TextStyle(color: p.mu, fontSize: 15, height: 1.5)),
+        const SizedBox(height: 18),
+        TextField(
+          controller: _c,
+          autofocus: true,
+          enabled: !_busy,
+          keyboardType: TextInputType.phone,
+          inputFormatters: [PhoneFormatter()],
+          style: TextStyle(color: p.tx, fontSize: 17),
+          decoration: InputDecoration(
+            labelText: 'Номер телефона',
+            hintText: '+7 (900) 000-00-00',
+            hintStyle: TextStyle(color: p.mu.withOpacity(.7)),
+            filled: true,
+            fillColor: p.bg2,
+            labelStyle: TextStyle(color: p.mu),
+            floatingLabelStyle: TextStyle(color: p.ac),
+            contentPadding: const EdgeInsets.fromLTRB(16, 20, 12, 18),
+            enabledBorder: ob(p.bd),
+            border: ob(p.bd),
+            focusedBorder: ob(p.ac),
+          ),
+          onSubmitted: (_) => _busy ? null : _save(),
+        ),
+        if (_err != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_err!, style: TextStyle(color: p.dng, fontSize: 13.5, fontWeight: FontWeight.w600))),
+        const SizedBox(height: 20),
+        GradBtn('Сохранить', busy: _busy, height: 56, radius: 16, onTap: _busy ? null : _save),
+        const SizedBox(height: 6),
+        SizedBox(height: 48, child: TextButton(onPressed: _busy ? null : _out, child: Text('Выйти из аккаунта', style: TextStyle(color: p.mu, fontSize: 15, fontWeight: FontWeight.w600)))),
+      ]),
+    );
     return PopScope(
       canPop: false,
-      child: AlertDialog(
-        backgroundColor: p.card,
-        title: Text('Укажите номер телефона', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
-        content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text('Сервис входа не передал ваш номер. Укажите его, чтобы с вами могли связаться по объявлениям.', style: TextStyle(color: p.mu)),
-            ),
-            TextField(
-              controller: _c,
-              autofocus: true,
-              keyboardType: TextInputType.phone,
-              inputFormatters: [PhoneFormatter()],
-              decoration: InputDecoration(labelText: 'Номер телефона', hintText: '+7 (900) 000-00-00', errorText: _err),
-              onSubmitted: (_) => _busy ? null : _save(),
-            ),
-          ]),
-        ),
-        actions: [
-          TextButton(onPressed: _busy ? null : _out, child: const Text('Выйти из аккаунта')),
-          FilledButton(onPressed: _busy ? null : _save, child: _busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Сохранить')),
-        ],
-      ),
+      child: widget.wide
+          ? Dialog(
+              backgroundColor: p.card,
+              insetPadding: const EdgeInsets.all(24),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+              child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 460), child: content),
+            )
+          : Padding(padding: EdgeInsets.only(bottom: mq.viewInsets.bottom), child: content),
     );
   }
 }
