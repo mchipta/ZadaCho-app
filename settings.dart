@@ -207,10 +207,12 @@ class _FieldsDialogState extends State<_FieldsDialog> {
         GradBtn(widget.ok, busy: _busy, height: 56, radius: 16, onTap: _busy ? null : _submit),
         const SizedBox(height: 6),
         SizedBox(
+          width: double.infinity,
           height: 48,
           child: TextButton(
+            style: TextButton.styleFrom(alignment: Alignment.center, padding: EdgeInsets.zero),
             onPressed: _busy ? null : () => Navigator.pop(context, widget.back ? const [kBackMarker] : null),
-            child: Text(widget.back ? 'Назад' : 'Отмена', style: TextStyle(color: p.mu, fontSize: 15, fontWeight: FontWeight.w600)),
+            child: Center(child: Text(widget.back ? 'Назад' : 'Отмена', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15, fontWeight: FontWeight.w600))),
           ),
         ),
       ]),

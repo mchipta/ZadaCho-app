@@ -230,7 +230,7 @@ class _PhoneAskState extends State<_PhoneAsk> {
         const SizedBox(height: 20),
         GradBtn('Сохранить', busy: _busy, height: 56, radius: 16, onTap: _busy ? null : _save),
         const SizedBox(height: 6),
-        SizedBox(height: 48, child: TextButton(onPressed: _busy ? null : _out, child: Text('Выйти из аккаунта', style: TextStyle(color: p.mu, fontSize: 15, fontWeight: FontWeight.w600)))),
+        SizedBox(width: double.infinity, height: 48, child: TextButton(style: TextButton.styleFrom(alignment: Alignment.center, padding: EdgeInsets.zero), onPressed: _busy ? null : _out, child: Center(child: Text('Выйти из аккаунта', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15, fontWeight: FontWeight.w600))))),
       ]),
     );
     return PopScope(
