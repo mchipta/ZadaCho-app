@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'legal.dart';
@@ -87,8 +88,6 @@ class _AuthPageState extends State<AuthPage> {
   Country country = kCountries.first;
   bool busy = false;
   bool show = false;
-  bool agreeTerms = false; // оферта и политика
-  bool agreePd = false; // согласие на обработку персональных данных (отдельная отметка, 152-ФЗ ст. 9)
   String? err;
   String? info;
 
@@ -111,28 +110,37 @@ class _AuthPageState extends State<AuthPage> {
     });
   }
 
-  Widget _socBtn(Pal p, String k, String label, String mark, Color c) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => launchUrl(Uri.parse('https://zadacho.ru/oauth/$k/start?mode=app'), mode: LaunchMode.externalApplication),
-          child: Container(
-            height: 50,
-            decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Container(
-                width: 24,
-                height: 24,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(k == 'vk' ? 7 : 12)),
-                child: Text(mark, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
-              ),
-              const SizedBox(width: 10),
-              Text('Войти через $label', style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 15)),
-            ]),
-          ),
+  // Логотипы Яндекса и VK рисуются из SVG, чтобы не зависеть от файлов
+  static const _yaSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28"><circle cx="14" cy="14" r="14" fill="#fc3f1d"/><path d="M15.4 7.4v13.2M15.4 7.4h-2.7a3.3 3.3 0 0 0 0 6.6h2.7M12.9 14l-3.2 6.6" fill="none" stroke="#fff" stroke-width="2.3" stroke-linejoin="round"/></svg>';
+  static const _vkSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="7" fill="#0077ff"/><path transform="translate(3.6 3.6) scale(0.7)" fill="#fff" d="M12.8 17.1c-5.9 0-9.3-4-9.4-10.7h3c.1 4.9 2.3 7 4 7.4V6.4h2.8v4.2c1.7-.2 3.5-2.1 4.1-4.2h2.8c-.5 2.6-2.4 4.5-3.7 5.3 1.3.6 3.4 2.3 4.2 5.4h-3.1c-.7-2.1-2.3-3.7-4.3-3.9v3.9z"/></svg>';
+
+  Widget _socBtn(Pal p, String k, String label, String svg) => InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => launchUrl(Uri.parse('https://zadacho.ru/oauth/$k/start?mode=app'), mode: LaunchMode.externalApplication),
+        child: Container(
+          height: 54,
+          decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd, width: 1.5)),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            SvgPicture.string(svg, width: 28, height: 28),
+            const SizedBox(width: 10),
+            Text(label, style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 15.5)),
+          ]),
         ),
       );
+
+  /// Яндекс и VK в один ряд (если на сервере включён только один способ, кнопка на всю ширину)
+  Widget _socRow(Pal p) {
+    final b = <Widget>[
+      if (_soc.contains('yandex')) _socBtn(p, 'yandex', 'Яндекс', _yaSvg),
+      if (_soc.contains('vk')) _socBtn(p, 'vk', 'VK ID', _vkSvg),
+    ];
+    return Row(children: [
+      for (var i = 0; i < b.length; i++) ...[
+        if (i > 0) const SizedBox(width: 10),
+        Expanded(child: b[i]),
+      ],
+    ]);
+  }
 
   @override
   void dispose() {
@@ -142,32 +150,9 @@ class _AuthPageState extends State<AuthPage> {
     super.dispose();
   }
 
-  TextSpan _link(Pal p, String t, GestureRecognizer r) =>
-      TextSpan(text: t, recognizer: r, style: TextStyle(color: p.ac, fontWeight: FontWeight.w700));
-
-  Widget _agree(Pal p, bool v, ValueChanged<bool> f, List<InlineSpan> spans) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: Checkbox(
-              value: v,
-              onChanged: (x) { haptic(); f(x ?? false); },
-              activeColor: p.ac,
-              visualDensity: VisualDensity.compact,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: GestureDetector(
-              onTap: () { haptic(); f(!v); },
-              child: Text.rich(TextSpan(style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.4), children: spans)),
-            ),
-          ),
-        ]),
-      );
+  // Ссылка в мелком тексте под кнопками: серая, подчёркнутая (согласие даётся нажатием кнопки)
+  TextSpan _ulink(Pal p, String t, GestureRecognizer r) =>
+      TextSpan(text: t, recognizer: r, style: TextStyle(color: p.mu, decoration: TextDecoration.underline, decorationColor: p.mu));
 
   static final _emailRe = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$');
 
@@ -223,8 +208,6 @@ class _AuthPageState extends State<AuthPage> {
         if (!_check(nat.length == country.len, 'Укажите номер телефона полностью')) return;
         if (!_check(_emailRe.hasMatch(_em), 'Укажите настоящий адрес почты')) return;
         if (!_check(pass.text.length >= 6, 'Пароль — не короче 6 символов')) return;
-        if (!_check(agreeTerms, 'Примите условия Пользовательского соглашения и Политики конфиденциальности')) return;
-        if (!_check(agreePd, 'Нужно согласие на обработку персональных данных')) return;
         await _run(() async {
           await Api.call('sendCode', {'email': _em, 'kind': 'reg'});
           code.clear();
@@ -244,9 +227,9 @@ class _AuthPageState extends State<AuthPage> {
             'name': name.text.trim(),
             'phone': '+${country.code} ${_nat(phone.text, country)}', // как на сайте: «+375 291234567»
             'code': code.text.trim(),
-            // фиксируем на сервере, что оферта и согласие на обработку данных приняты (и какой редакции)
-            'terms': agreeTerms ? 1 : 0,
-            'pd': agreePd ? 1 : 0,
+            // согласие даётся нажатием кнопки под текстом с ссылками; сервер сохраняет отметку и редакцию документов
+            'terms': 1,
+            'pd': 1,
             'docs': kLegalVersion,
           });
           await _finish(j);
@@ -297,8 +280,8 @@ class _AuthPageState extends State<AuthPage> {
   Widget build(BuildContext context) {
     final p = pal(context);
     final titles = {
-      AMode.login: 'Вход',
-      AMode.reg: 'Регистрация',
+      AMode.login: 'Войти',
+      AMode.reg: 'Создать аккаунт',
       AMode.regCode: 'Регистрация',
       AMode.reset: 'Сброс пароля',
       AMode.resetCode: 'Новый пароль',
@@ -311,6 +294,7 @@ class _AuthPageState extends State<AuthPage> {
       AMode.resetCode: 'Сохранить пароль',
     };
     final isCode = m == AMode.regCode || m == AMode.resetCode;
+    final v3 = m == AMode.login || m == AMode.reg; // новый вид входа и регистрации (как на сайте)
     return Scaffold(
       appBar: AppBar(),
       body: SafeArea(
@@ -318,9 +302,9 @@ class _AuthPageState extends State<AuthPage> {
           child: ListView(
             key: ValueKey(m),padding: const EdgeInsets.fromLTRB(20, 0, 20, 24), children: [
           Align(alignment: Alignment.centerLeft, child: isCode ? const AuthTile(Icons.mail_outline_rounded) : const Logo(size: 48)),
-          const SizedBox(height: 16),
-          Text(titles[m]!, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: p.tx)),
-          const SizedBox(height: 6),
+          SizedBox(height: v3 ? 22 : 16),
+          Text(titles[m]!, style: TextStyle(fontSize: v3 ? 28 : 26, fontWeight: FontWeight.w800, height: v3 ? 1.15 : null, color: p.tx)),
+          SizedBox(height: v3 ? 10 : 6),
           if (isCode)
             Text.rich(
               TextSpan(style: TextStyle(color: p.mu, fontSize: 15, height: 1.5), children: [
@@ -332,73 +316,93 @@ class _AuthPageState extends State<AuthPage> {
           else
             Text(
                 m == AMode.login
-                    ? 'Войдите, чтобы откликаться и размещать объявления'
+                    ? 'Чтобы откликаться и публиковать объявления'
                     : m == AMode.reg
-                        ? 'Создайте аккаунт — это займёт минуту'
+                        ? 'Займёт минуту. Код придёт на почту'
                         : 'Пришлём код на вашу почту',
-                style: TextStyle(color: p.mu, fontSize: 15)),
-          const SizedBox(height: 20),
+                style: TextStyle(color: p.mu, fontSize: v3 ? 15.5 : 15, height: v3 ? 1.45 : null)),
+          SizedBox(height: v3 ? 26 : 20),
           if (m == AMode.reg) ...[
-            _field(name, 'Имя', icon: Icons.person_outline, cap: TextCapitalization.words),
+            _field(name, 'Имя', cap: TextCapitalization.words),
             _phoneRow(p),
           ],
           if (!isCode)
-            _field(email, m == AMode.login ? 'Почта или телефон' : 'Почта', icon: Icons.mail_outline, type: m == AMode.login ? TextInputType.emailAddress : TextInputType.emailAddress),
+            _field(email, m == AMode.login ? 'Почта или телефон' : 'Почта', icon: Icons.mail_outline, type: TextInputType.emailAddress),
           if (isCode) Padding(padding: const EdgeInsets.only(bottom: 4), child: OtpField(controller: code, autofocus: true)),
           if (isCode) ResendLink(onResend: () => Api.call('sendCode', {'email': _em, 'kind': m == AMode.regCode ? 'reg' : 'reset'})),
           if (isCode) const Padding(padding: EdgeInsets.only(bottom: 14), child: SpamNote()),
           if (m == AMode.login || m == AMode.reg || m == AMode.resetCode) ...[
-            _field(pass, m == AMode.resetCode ? 'Новый пароль' : 'Пароль', icon: Icons.lock_outline, secret: true),
+            _field(pass, m == AMode.resetCode ? 'Новый пароль' : (m == AMode.reg ? 'Пароль, от 6 символов' : 'Пароль'), icon: Icons.lock_outline, secret: true),
             if (m == AMode.reg || m == AMode.resetCode) PwStrength(pass.text),
           ],
-          if (m == AMode.reg) ...[
-            _agree(p, agreeTerms, (v) => setState(() => agreeTerms = v), [
-              const TextSpan(text: 'Я принимаю условия '),
-              _link(p, 'Пользовательского соглашения (оферты)', _rOffer),
-              const TextSpan(text: ' и '),
-              _link(p, 'Политики конфиденциальности', _rPrivacy),
-              const TextSpan(text: '. Мне исполнилось 18 лет'),
-            ]),
-            _agree(p, agreePd, (v) => setState(() => agreePd = v), [
-              const TextSpan(text: 'Даю '),
-              _link(p, 'согласие на обработку персональных данных', _rConsent),
-            ]),
-          ],
+          if (m == AMode.login)
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _mode(AMode.reset),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 2, 16),
+                  child: Text('Забыли пароль?', style: TextStyle(color: p.ac, fontWeight: FontWeight.w600, fontSize: 14.5)),
+                ),
+              ),
+            ),
           if (info != null && !isCode) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(info!, style: TextStyle(color: p.ok, fontWeight: FontWeight.w600))),
           if (err != null) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(err!, style: TextStyle(color: p.dng, fontWeight: FontWeight.w600))),
-          GradBtn(btn[m]!, busy: busy, onTap: _submit, height: isCode ? 56 : 46, radius: isCode ? 16 : 12),
-          const SizedBox(height: 10),
-          if ((m == AMode.login || m == AMode.reg) && _soc.isNotEmpty) ...[
-            Row(children: [
-              Expanded(child: Divider(color: p.bd)),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('или', style: TextStyle(color: p.mu, fontSize: 13))),
-              Expanded(child: Divider(color: p.bd)),
-            ]),
-            const SizedBox(height: 10),
-            if (_soc.contains('yandex')) _socBtn(p, 'yandex', 'Яндекс ID', 'Я', const Color(0xFFFC3F1D)),
-            if (_soc.contains('vk')) _socBtn(p, 'vk', 'VK ID', 'VK', const Color(0xFF0077FF)),
-          ],
-          if (m == AMode.login) ...[
+          GradBtn(btn[m]!, busy: busy, onTap: _submit, height: (isCode || v3) ? 56 : 46, radius: (isCode || v3) ? 16 : 12),
+          if (v3) ...[
+            if (_soc.isNotEmpty) ...[
+              const SizedBox(height: 22),
+              Row(children: [
+                Expanded(child: Divider(color: p.bd)),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text(m == AMode.login ? 'или войти через' : 'или', style: TextStyle(color: p.mu, fontSize: 13))),
+                Expanded(child: Divider(color: p.bd)),
+              ]),
+              const SizedBox(height: 16),
+              _socRow(p),
+            ],
+            const SizedBox(height: 14),
+            Center(
+              child: TextButton(
+                onPressed: () => _mode(m == AMode.login ? AMode.reg : AMode.login),
+                child: Text.rich(TextSpan(style: TextStyle(color: p.mu, fontSize: 15), children: [
+                  TextSpan(text: m == AMode.login ? 'Нет аккаунта? ' : 'Уже есть аккаунт? '),
+                  TextSpan(text: m == AMode.login ? 'Создать' : 'Войти', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)),
+                ])),
+              ),
+            ),
+            // условия спрятаны в мелкий текст внизу; согласие даётся нажатием кнопки
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
               child: Text.rich(
-                TextSpan(style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.4), children: [
-                  const TextSpan(text: 'Входя в аккаунт, вы принимаете условия '),
-                  _link(p, 'Пользовательского соглашения', _rOffer),
-                  const TextSpan(text: ' и '),
-                  _link(p, 'Политики конфиденциальности', _rPrivacy),
-                  const TextSpan(text: ' и даёте '),
-                  _link(p, 'согласие на обработку персональных данных', _rConsent),
-                ]),
+                TextSpan(
+                  style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.45),
+                  children: m == AMode.login
+                      ? <InlineSpan>[
+                          const TextSpan(text: 'Входя, вы принимаете '),
+                          _ulink(p, 'условия использования', _rOffer),
+                          const TextSpan(text: ' и '),
+                          _ulink(p, 'политику конфиденциальности', _rPrivacy),
+                        ]
+                      : <InlineSpan>[
+                          const TextSpan(text: 'Продолжая, вы подтверждаете, что вам есть 18 лет, принимаете '),
+                          _ulink(p, 'условия использования', _rOffer),
+                          const TextSpan(text: ' и '),
+                          _ulink(p, 'политику конфиденциальности', _rPrivacy),
+                          const TextSpan(text: ' и даёте '),
+                          _ulink(p, 'согласие на обработку данных', _rConsent),
+                        ],
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
-            Center(child: TextButton(onPressed: () => _mode(AMode.reset), child: Text('Забыли пароль?', style: TextStyle(color: p.mu)))),
-            Center(child: TextButton(onPressed: () => _mode(AMode.reg), child: Text('Нет аккаунта? Зарегистрироваться', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)))),
-          ] else if (isCode)
-            Center(child: TextButton(onPressed: () => _mode(m == AMode.regCode ? AMode.reg : AMode.reset), child: Text('Изменить почту', style: TextStyle(color: p.mu, fontWeight: FontWeight.w600))))
-          else
+          ] else if (isCode) ...[
+            const SizedBox(height: 10),
+            Center(child: TextButton(onPressed: () => _mode(m == AMode.regCode ? AMode.reg : AMode.reset), child: Text('Изменить почту', style: TextStyle(color: p.mu, fontWeight: FontWeight.w600)))),
+          ] else ...[
+            const SizedBox(height: 10),
             Center(child: TextButton(onPressed: () => _mode(AMode.login), child: Text('Назад ко входу', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)))),
+          ],
         ]),
         ),
       ),
@@ -447,9 +451,9 @@ class _AuthPageState extends State<AuthPage> {
         GestureDetector(
           onTap: _pickCountry,
           child: Container(
-            height: 56,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
+            height: 60,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd, width: 1.5)),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Text(country.flag, style: const TextStyle(fontSize: 22)),
               const SizedBox(width: 6),
@@ -467,19 +471,46 @@ class _AuthPageState extends State<AuthPage> {
             inputFormatters: [_PhoneMask(country)],
             autocorrect: false,
             style: TextStyle(color: p.tx),
-            decoration: deco(context, null, hint: country.example).copyWith(constraints: const BoxConstraints(minHeight: 56)),
+            decoration: _dec(p, 'Телефон', hint: country.example).copyWith(constraints: const BoxConstraints(minHeight: 60)),
           ),
         ),
       ]),
     );
   }
 
+  /// Поле входа и регистрации: плавающая подпись, фон чуть темнее карточки, скругление 16
+  InputDecoration _dec(Pal p, String label, {String? hint, Widget? suffix}) {
+    OutlineInputBorder ob(Color c, [double w = 1.5]) => OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: c, width: w),
+        );
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: p.bg2,
+      labelStyle: TextStyle(color: p.mu),
+      hintStyle: TextStyle(color: p.mu.withOpacity(.7)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      enabledBorder: ob(p.bd),
+      border: ob(p.bd),
+      focusedBorder: ob(p.ac, 1.8),
+    );
+  }
+
   Widget _field(TextEditingController c, String label,
       {IconData? icon, bool secret = false, TextInputType? type, String? hint, TextCapitalization cap = TextCapitalization.none}) {
     final p = pal(context);
+    final v3 = m == AMode.login || m == AMode.reg;
+    final eye = secret
+        ? IconButton(
+            icon: Icon(show ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: p.mu),
+            onPressed: () { setState(() => show = !show); })
+        : null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(contextMenuBuilder: appContextMenu, 
+      child: TextField(contextMenuBuilder: appContextMenu,
         controller: c,
         obscureText: secret && !show,
         keyboardType: type,
@@ -487,17 +518,9 @@ class _AuthPageState extends State<AuthPage> {
         autocorrect: false,
         enableSuggestions: !secret,
         style: TextStyle(color: p.tx),
-        decoration: deco(
-          context,
-          label,
-          hint: hint,
-          prefix: icon == null ? null : Icon(icon, color: p.mu),
-          suffix: secret
-              ? IconButton(
-                  icon: Icon(show ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: p.mu),
-                  onPressed: () { setState(() => show = !show); })
-              : null,
-        ),
+        decoration: v3
+            ? _dec(p, label, hint: hint, suffix: eye)
+            : deco(context, label, hint: hint, prefix: icon == null ? null : Icon(icon, color: p.mu), suffix: eye),
       ),
     );
   }
