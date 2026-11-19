@@ -44,6 +44,7 @@ class S extends ChangeNotifier {
   String phonePrivacy = 'all'; // all, reply, chat
   Map<String, bool> notifTypes = {'msg': true, 'reply': true, 'ss': true, 'rev': true};
   bool dndOn = false;
+  bool regionOpen = false; // шторка «Где вы ищете?» ждёт/открыта — «Что ищете?» идёт после неё
   bool intentOpen = false; // открыт лист «Что ищете?» — шторку региона ждём
   bool regionAsked = false; // шторку «Где вы ищете?» за запуск показываем один раз
   String dndFrom = '22:00';
@@ -238,6 +239,7 @@ class S extends ChangeNotifier {
   String get login => (user?['login'] ?? '').toString();
 
   Future<void> setUser(Map<String, dynamic>? j) async {
+    final wasLogged = user != null;
     user = j;
     Api.token = j == null ? null : j['t'] as String?;
     if (j == null) {
@@ -252,8 +254,8 @@ class S extends ChangeNotifier {
       _dlgs = 0;
       _unreadInit = false;
       if (tab == 4) tab = 0; // вкладка «Сообщения» только для вошедших
-    } else if (tab == 0) {
-      tab = 1; // вошли: «Главная» скрыта, открываем поиск
+    } else if (tab == 0 || (!wasLogged && tab == 3)) {
+      tab = 1; // вошли: «Главная» скрыта, открываем поиск (а не профиль)
     }
     notifyListeners();
     await syncBgPushState();

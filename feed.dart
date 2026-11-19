@@ -541,6 +541,10 @@ class _FeedPageState extends State<FeedPage> {
           _intentShown = true;
           S.i.intentOpen = true;
           WidgetsBinding.instance.addPostFrameCallback((_) async {
+            // сначала «Где вы ищете?», потом «Что ищете?»
+            for (var k = 0; k < 150 && S.i.regionOpen; k++) {
+              await Future.delayed(const Duration(milliseconds: 200));
+            }
             if (!mounted) {
               S.i.intentOpen = false;
               return;
