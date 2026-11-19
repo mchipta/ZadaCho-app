@@ -1750,27 +1750,27 @@ class _RegionSheetBodyState extends State<_RegionSheetBody> {
   Widget build(BuildContext context) {
     final p = pal(context);
     final has = _c.text.trim().isNotEmpty;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         Center(child: Container(width: 44, height: 4, decoration: BoxDecoration(color: p.mu.withOpacity(.45), borderRadius: BorderRadius.circular(99)))),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
         Container(
-          width: 52,
-          height: 52,
+          width: 54,
+          height: 54,
           decoration: BoxDecoration(
             gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [p.ac, p.ac2]),
-            borderRadius: BorderRadius.circular(17),
-            boxShadow: [BoxShadow(color: p.ac.withOpacity(.4), blurRadius: 22, offset: const Offset(0, 8))],
+            borderRadius: BorderRadius.circular(18),
           ),
-          child: const Icon(Icons.place_rounded, color: Colors.white, size: 26),
+          child: const Icon(Icons.place_rounded, color: Colors.white, size: 27),
         ),
         const SizedBox(height: 14),
-        Text('Где вы ищете?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: p.tx, letterSpacing: -.4)),
+        Text('Где вы ищете?', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: p.tx, letterSpacing: -.5)),
         const SizedBox(height: 6),
         Text('Покажем подработки и услуги рядом с вами. Город можно сменить в любой момент в настройках.',
-            style: TextStyle(color: p.mu, fontSize: 14, height: 1.4)),
-        const SizedBox(height: 16),
+            style: TextStyle(color: p.mu, fontSize: 15, height: 1.4)),
+        const SizedBox(height: 18),
         CityField(
           controller: _c,
           decoration: deco(context, 'Город или регион', prefix: Icon(Icons.place_outlined, color: p.mu)),
@@ -1781,21 +1781,22 @@ class _RegionSheetBodyState extends State<_RegionSheetBody> {
           onTap: _busy ? null : _locate,
           scale: .98,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(color: p.bg.withOpacity(.4), borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: dark ? const Color(0xFF16120F) : p.bg2, borderRadius: BorderRadius.circular(20), border: Border.all(color: p.bd)),
             child: Row(children: [
+              // как значки в «Что ищете?»: нейтральная плитка и оранжевая иконка
               Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: p.ac.withOpacity(.14), borderRadius: BorderRadius.circular(13)),
-                child: Icon(Icons.my_location_rounded, color: p.ac, size: 20),
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(color: dark ? const Color(0xFF2A2521) : p.card, borderRadius: BorderRadius.circular(16)),
+                child: Icon(Icons.my_location_rounded, color: p.ac, size: 24),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Определить автоматически', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: p.tx)),
-                  const SizedBox(height: 2),
-                  Text('Нужен доступ к геолокации', style: TextStyle(fontSize: 12.5, color: p.mu)),
+                  Text('Определить автоматически', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)),
+                  const SizedBox(height: 3),
+                  Text('Нужен доступ к геолокации', style: TextStyle(fontSize: 13.5, height: 1.3, color: p.mu)),
                 ]),
               ),
               if (_busy) SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.ac)),
