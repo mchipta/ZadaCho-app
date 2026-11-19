@@ -524,6 +524,32 @@ String siteChatStamp(int ts, String zone) {
   return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')} $hm';
 }
 
+// Только время для сообщения в чате: дату показывает разделитель «Сегодня / Вчера / 19 ноября»
+String siteChatHm(int ts, String zone) {
+  if (ts <= 0) return '';
+  final d = siteDate(ts, zone);
+  return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+}
+
+// Ключ дня в часовом поясе сайта: по нему сообщения делятся на дни
+int siteDayKey(int ts, String zone) {
+  final d = siteDate(ts, zone);
+  return d.year * 10000 + d.month * 100 + d.day;
+}
+
+// Подпись разделителя, как на сайте: «Сегодня», «Вчера», «19 ноября» (с годом, если год не текущий)
+String siteDayLabel(int ts, String zone) {
+  final nowMs = DateTime.now().millisecondsSinceEpoch;
+  final k = siteDayKey(ts, zone);
+  if (k == siteDayKey(nowMs, zone)) return 'Сегодня';
+  if (k == siteDayKey(nowMs - 86400000, zone)) return 'Вчера';
+  const m = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  final d = siteDate(ts, zone);
+  final now = siteDate(nowMs, zone);
+  final s = '${d.day} ${m[d.month - 1]}';
+  return d.year == now.year ? s : '$s ${d.year}';
+}
+
 String siteListTime(int ts, String zone) {
   if (ts <= 0) return '';
   final d = siteDate(ts, zone);

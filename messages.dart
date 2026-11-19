@@ -34,7 +34,7 @@ const kQuick = [
 
 int _n(dynamic v) => v is num ? v.toInt() : int.tryParse((v ?? '').toString()) ?? 0;
 
-String stamp(int ts) => siteChatStamp(ts, S.i.timeZone);
+String stamp(int ts) => siteChatHm(ts, S.i.timeZone);
 
 final _cardRe = RegExp(r'(?:\d[ -]?){13,19}');
 
@@ -1272,7 +1272,23 @@ class _ChatPageState extends State<ChatPage> {
                       reverse: true,
                       padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + _barH),
                       itemCount: rev.length,
-                      itemBuilder: (c, i) => _bubble(p, rev[i]),
+                      itemBuilder: (c, i) {
+                        // список перевёрнут: разделитель дня рисуем над самым ранним сообщением дня
+                        final ts = _n(rev[i]['ts']);
+                        final first = i == rev.length - 1 || siteDayKey(_n(rev[i + 1]['ts']), S.i.timeZone) != siteDayKey(ts, S.i.timeZone);
+                        if (!first || ts <= 0) return _bubble(p, rev[i]);
+                        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          Center(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                              decoration: BoxDecoration(borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bd)),
+                              child: Text(siteDayLabel(ts, S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 13.5, fontWeight: FontWeight.w500)),
+                            ),
+                          ),
+                          _bubble(p, rev[i]),
+                        ]);
+                      },
                     ),
         ),
         Positioned(
