@@ -720,6 +720,7 @@ class _CabinetPageState extends State<CabinetPage> {
       items.add(AdCard(
         ad: ad,
         showFav: false,
+        hlStyle: false,
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: ad))),
         footer: OwnerPanel(
           ad: ad,

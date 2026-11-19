@@ -752,7 +752,8 @@ class AdCard extends StatelessWidget {
   final Widget? footer;
   final bool showFav;
   final int mode; // 0 список, 1 плитка, 2 компактно
-  const AdCard({super.key, required this.ad, required this.onTap, this.footer, this.showFav = true, this.mode = 0});
+  final bool hlStyle; // подсвечивать выделенные (продвижение); в «Моих объявлениях» выключено
+  const AdCard({super.key, required this.ad, required this.onTap, this.footer, this.showFav = true, this.mode = 0, this.hlStyle = true});
 
   @override
   Widget build(BuildContext context) {
@@ -768,7 +769,7 @@ class AdCard extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(12),
-          decoration: adCardDeco(p, r: 24, hl: ad.hl),
+          decoration: adCardDeco(p, r: 24, hl: ad.hl && hlStyle),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               SizedBox(width: thumb, height: thumb, child: _cover(p, thumb)),
@@ -894,7 +895,7 @@ class AdCard extends StatelessWidget {
         scale: .98,
         child: Container(
           clipBehavior: Clip.antiAlias,
-          decoration: adCardDeco(p, r: 16, hl: ad.hl),
+          decoration: adCardDeco(p, r: 16, hl: ad.hl && hlStyle),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             AspectRatio(
               aspectRatio: 1.25,
@@ -948,7 +949,7 @@ class AdCard extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.fromLTRB(8, 8, 6, 8),
-          decoration: adCardDeco(p, r: 16, hl: ad.hl),
+          decoration: adCardDeco(p, r: 16, hl: ad.hl && hlStyle),
           child: Row(children: [
             SizedBox(width: 62, height: 62, child: _cover(p, 62)),
             const SizedBox(width: 10),
@@ -1722,14 +1723,13 @@ class OwnerPanel extends StatelessWidget {
       if (isOpen || hidden) icon(Icons.edit_outlined, 'Изменить', onEdit),
       if (isOpen) icon(Icons.visibility_off_outlined, 'Снять', onToggle, color: p.dng),
       if (!isOpen && !hidden) icon(Icons.publish_rounded, 'Опубликовать снова', onRepublish ?? onToggle, color: p.ok),
-      if (isOpen) icon(Icons.bolt_rounded, 'Продвижение', onPromo, on: ad.hl),
+      if (isOpen) icon(Icons.bolt_rounded, 'Продвижение', onPromo),
       if (!isOpen && !hidden) icon(Icons.delete_outline_rounded, 'Удалить', onDelete, color: p.dng),
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Tag(hidden ? 'Скрыто' : isOpen ? 'Активно' : 'Снято', hidden ? p.dng : isOpen ? p.ok : p.mu),
-        if (isOpen && ad.hl) ...[const SizedBox(width: 6), Tag('Выделено', p.ac)],
         const SizedBox(width: 10),
         Expanded(child: Text('Обновлено ${ago(upd)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13))),
       ]),
@@ -1740,12 +1740,16 @@ class OwnerPanel extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
           decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
           child: Row(children: [
-            Icon(Icons.autorenew_rounded, size: 18, color: ad.autoRenew ? p.ok : p.mu),
+            Icon(Icons.autorenew_rounded, size: 18, color: ad.autoRenew ? p.ac : p.mu),
             const SizedBox(width: 8),
             Expanded(child: Text('Автопродление каждые 30 дней', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: p.tx))),
             Switch(
               value: ad.autoRenew,
-              activeColor: p.ok,
+              activeColor: Colors.white,
+              activeTrackColor: p.ac,
+              inactiveThumbColor: Colors.white,
+              inactiveTrackColor: p.mu.withOpacity(.45),
+              trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               onChanged: onAutoRenew,
             ),
