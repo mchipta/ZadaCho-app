@@ -537,7 +537,7 @@ class _FeedPageState extends State<FeedPage> {
         }
         final pend = S.i.pendingSearch;
         if (pend != null && !_intentShown) _intentShown = true; // поиск уже задан (сохранённый/с главной) — не спрашиваем
-        if (S.i.tab == 1 && !_intentShown && !S.i.feedTypeChosen) {
+        if (S.i.logged && S.i.tab == 1 && !_intentShown && !S.i.feedTypeChosen) { // только после входа в аккаунт
           _intentShown = true;
           S.i.intentOpen = true;
           WidgetsBinding.instance.addPostFrameCallback((_) async {
