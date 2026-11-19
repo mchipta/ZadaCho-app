@@ -536,21 +536,27 @@ class _FeedPageState extends State<FeedPage> {
           });
         }
         final pend = S.i.pendingSearch;
-        if (pend != null && !_intentShown) _intentShown = true; // поиск уже задан (сохранённый/с главной) — не спрашиваем
-        if (S.i.logged && S.i.tab == 1 && !_intentShown && !S.i.feedTypeChosen) { // только после входа в аккаунт
+        if (pend != null) S.i.intentArmed = false; // поиск уже задан (сохранённый/с главной) — не спрашиваем
+        // только после входа в аккаунт или когда человек сам перешёл в поиск, но не при запуске приложения
+        if (S.i.logged && S.i.intentArmed && S.i.tab == 1 && !_intentShown && !S.i.feedTypeChosen) {
           _intentShown = true;
+          S.i.intentArmed = false;
           S.i.intentOpen = true;
           WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await Future.delayed(const Duration(milliseconds: 900)); // дать закрыться экрану входа и открыться шторке региона
             // сначала «Где вы ищете?», потом «Что ищете?»
             for (var k = 0; k < 150 && S.i.regionOpen; k++) {
               await Future.delayed(const Duration(milliseconds: 200));
             }
-            if (!mounted) {
+            if (!mounted || !S.i.logged || S.i.tab != 1) {
               S.i.intentOpen = false;
+              _intentShown = false;
+              if (mounted && S.i.logged) S.i.intentArmed = true; // уйдёт в другую вкладку — спросим, когда вернётся в поиск
               return;
             }
             final t = await showFeedIntentSheet(context);
             S.i.intentOpen = false;
+            _intentShown = false;
             if (t == null) return;
             await S.i.setFeedType(t);
             if (mounted) setState(() => _type = t);

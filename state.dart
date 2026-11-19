@@ -44,6 +44,7 @@ class S extends ChangeNotifier {
   String phonePrivacy = 'all'; // all, reply, chat
   Map<String, bool> notifTypes = {'msg': true, 'reply': true, 'ss': true, 'rev': true};
   bool dndOn = false;
+  bool intentArmed = false; // «Что ищете?» спрашиваем при входе в аккаунт и когда человек сам заходит в поиск, не при запуске
   bool regionOpen = false; // шторка «Где вы ищете?» ждёт/открыта — «Что ищете?» идёт после неё
   bool intentOpen = false; // открыт лист «Что ищете?» — шторку региона ждём
   bool regionAsked = false; // шторку «Где вы ищете?» за запуск показываем один раз
@@ -254,7 +255,10 @@ class S extends ChangeNotifier {
       _dlgs = 0;
       _unreadInit = false;
       if (tab == 4) tab = 0; // вкладка «Сообщения» только для вошедших
-    } else if (tab == 0 || (!wasLogged && tab == 3)) {
+    } else if (!wasLogged) {
+      intentArmed = true; // только что вошли
+      if (tab == 0 || tab == 3) tab = 1;
+    } else if (tab == 0) {
       tab = 1; // вошли: «Главная» скрыта, открываем поиск (а не профиль)
     }
     notifyListeners();
@@ -793,6 +797,7 @@ class S extends ChangeNotifier {
 
   void goTab(int t) {
     if (tab != t) vibrate();
+    if (t == 1 && tab != 1) intentArmed = true;
     tab = t;
     if (t == 3 || t == 6) cabTick++;
     if (t == 4) msgTick++;
