@@ -1049,28 +1049,32 @@ class ProfileGuest extends StatelessWidget {
     );
   }
 
-  Widget _row(Pal p, String ico, String title, String sub) => Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
-        child: Row(children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: p.ac.withOpacity(.14), borderRadius: BorderRadius.circular(14)),
-            child: Ico(ico, size: 22, color: p.ac),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: TextStyle(color: p.tx, fontWeight: FontWeight.w600, fontSize: 16)),
-              const SizedBox(height: 2),
-              Text(sub, style: TextStyle(color: p.mu, fontSize: 13.5)),
-            ]),
-          ),
-        ]),
-      );
+  Widget _row(BuildContext context, Pal p, String ico, String title, String sub) {
+    // как в «Что ищете?»: нейтральная плитка и оранжевая иконка
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: dark ? const Color(0xFF16120F) : p.bg2, borderRadius: BorderRadius.circular(20), border: Border.all(color: p.bd)),
+      child: Row(children: [
+        Container(
+          width: 50,
+          height: 50,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: dark ? const Color(0xFF2A2521) : p.card, borderRadius: BorderRadius.circular(16)),
+          child: Ico(ico, size: 24, color: p.ac),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 17)),
+            const SizedBox(height: 3),
+            Text(sub, style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.3)),
+          ]),
+        ),
+      ]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1122,9 +1126,9 @@ class ProfileGuest extends StatelessWidget {
         Text('Аккаунт нужен, чтобы публиковать, откликаться и писать друг другу',
             textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15.5, height: 1.4)),
         const SizedBox(height: 22),
-        _row(p, 'plus', 'Нужна помощь?', 'Опубликуйте задачу, исполнитель откликнется'),
-        _row(p, 'work', 'Умеете что-то делать?', 'Предложите услуги заказчикам'),
-        _row(p, 'chat', 'Без комиссии', 'Договаривайтесь напрямую'),
+        _row(context, p, 'plus', 'Нужна помощь?', 'Опубликуйте задачу, исполнитель откликнется'),
+        _row(context, p, 'work', 'Умеете что-то делать?', 'Предложите услуги заказчикам'),
+        _row(context, p, 'chat', 'Без комиссии', 'Договаривайтесь напрямую'),
         const SizedBox(height: 16),
         SizedBox(width: double.infinity, child: GradBtn('Войти или создать аккаунт', height: 56, radius: 16, onTap: () => openSheet(context))),
       ]),
