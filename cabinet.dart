@@ -6,6 +6,7 @@ import 'ad_page.dart';
 import 'admin.dart';
 import 'api.dart';
 import 'icons.dart';
+import 'legal.dart';
 import 'auth.dart';
 import 'messages.dart';
 import 'models.dart';
@@ -994,59 +995,138 @@ class _CabinetPageState extends State<CabinetPage> {
       );
 }
 
-/// Профиль без входа: настройки по шестерёнке сверху, крупная кнопка входа
+/// Профиль без входа, вариант А: аватарка со свечением, три выгоды и кнопка, которая открывает шторку входа
 class ProfileGuest extends StatelessWidget {
   const ProfileGuest({super.key});
+
+  static void openSheet(BuildContext context) {
+    final p = pal(context);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: p.card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (sc) {
+        void go(AMode m) {
+          Navigator.pop(sc);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => AuthPage(start: m)));
+        }
+
+        Widget link(String t, String doc) => GestureDetector(
+              onTap: () => openLegal(context, doc),
+              child: Text(t, style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.5, decoration: TextDecoration.underline, decorationColor: p.mu)),
+            );
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: p.bd, borderRadius: BorderRadius.circular(4))),
+              const SizedBox(height: 18),
+              SizedBox(width: double.infinity, child: GradBtn('Войти', height: 56, radius: 16, onTap: () => go(AMode.login))),
+              const SizedBox(height: 10),
+              Tap(
+                onTap: () => go(AMode.reg),
+                scale: .97,
+                child: Container(
+                  height: 56,
+                  width: double.infinity,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd, width: 1.5)),
+                  child: Text('Создать аккаунт', style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 16.5)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Продолжая, вы принимаете', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.5)),
+              Wrap(alignment: WrapAlignment.center, spacing: 4, children: [
+                link('условия использования', 'offer'),
+                Text('и', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.5)),
+                link('политику конфиденциальности', 'privacy'),
+              ]),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _row(Pal p, String ico, String title, String sub) => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+        child: Row(children: [
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: p.ac.withOpacity(.14), borderRadius: BorderRadius.circular(14)),
+            child: Ico(ico, size: 22, color: p.ac),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(color: p.tx, fontWeight: FontWeight.w600, fontSize: 16)),
+              const SizedBox(height: 2),
+              Text(sub, style: TextStyle(color: p.mu, fontSize: 13.5)),
+            ]),
+          ),
+        ]),
+      );
+
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 64, 12, 0),
+      padding: const EdgeInsets.fromLTRB(6, 8, 6, 0),
       child: Column(children: [
-        Stack(clipBehavior: Clip.none, children: [
-          Container(
-            width: 112,
-            height: 112,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(center: const Alignment(0, -.3), colors: [Color.alphaBlend(p.ac.withOpacity(.22), p.card), p.card]),
-              border: Border.all(color: p.ac.withOpacity(.45), width: 2),
-              boxShadow: [
-                BoxShadow(color: p.ac.withOpacity(.07), spreadRadius: 10),
-                BoxShadow(color: p.ac.withOpacity(.04), spreadRadius: 22),
-                BoxShadow(color: p.ac.withOpacity(.22), blurRadius: 40, offset: const Offset(0, 18)),
-              ],
-            ),
-            child: Icon(Icons.person_outline_rounded, size: 54, color: p.ac),
+        Container(
+          width: 140,
+          height: 140,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(colors: [p.ac.withOpacity(.24), p.ac.withOpacity(0)], stops: const [0, .68]),
           ),
-          Positioned(
-            right: -2,
-            bottom: 2,
-            child: Container(
-              width: 36,
-              height: 36,
+          child: Stack(clipBehavior: Clip.none, children: [
+            Container(
+              width: 84,
+              height: 84,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [p.ac, p.ac2]),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: p.bg, width: 3),
+                shape: BoxShape.circle,
+                color: Color.alphaBlend(p.ac.withOpacity(.12), p.bg),
+                border: Border.all(color: p.ac.withOpacity(.55), width: 2),
               ),
-              child: const Icon(Icons.check_rounded, size: 20, color: Colors.white),
+              child: Ico('user', size: 40, color: p.ac),
             ),
-          ),
-        ]),
-        const SizedBox(height: 34),
-        Text('Ваш профиль', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: p.tx)),
-        const SizedBox(height: 8),
-        Text('Войдите, чтобы видеть свои объявления, отклики и управлять ими.',
-            textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15, height: 1.4)),
-        const SizedBox(height: 26),
-        SizedBox(
-          width: double.infinity,
-          child: GradBtn('Войти или создать аккаунт', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()))),
+            Positioned(
+              right: -4,
+              bottom: -2,
+              child: Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [p.ac, p.ac2]),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: p.bg, width: 3),
+                ),
+                child: const Icon(Icons.check_rounded, size: 15, color: Colors.white),
+              ),
+            ),
+          ]),
         ),
-        const SizedBox(height: 12),
-        Text('Без комиссии, договаривайтесь напрямую.',
-            textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 13, height: 1.35)),
+        const SizedBox(height: 10),
+        Text('Войдите, чтобы откликаться и публиковать',
+            textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx, height: 1.2)),
+        const SizedBox(height: 10),
+        Text('Аккаунт нужен, чтобы публиковать, откликаться и писать друг другу',
+            textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15.5, height: 1.4)),
+        const SizedBox(height: 22),
+        _row(p, 'plus', 'Нужна помощь?', 'Опубликуйте задачу, исполнитель откликнется'),
+        _row(p, 'work', 'Умеете что-то делать?', 'Предложите услуги заказчикам'),
+        _row(p, 'chat', 'Без комиссии', 'Договаривайтесь напрямую'),
+        const SizedBox(height: 16),
+        SizedBox(width: double.infinity, child: GradBtn('Войти или создать аккаунт', height: 56, radius: 16, onTap: () => openSheet(context))),
       ]),
     );
   }

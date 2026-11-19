@@ -73,13 +73,14 @@ class _PhoneMask extends TextInputFormatter {
 }
 
 class AuthPage extends StatefulWidget {
-  const AuthPage({super.key});
+  final AMode start;
+  const AuthPage({super.key, this.start = AMode.login});
   @override
   State<AuthPage> createState() => _AuthPageState();
 }
 
 class _AuthPageState extends State<AuthPage> {
-  AMode m = AMode.login;
+  late AMode m = widget.start;
   final name = TextEditingController();
   final phone = TextEditingController();
   final email = TextEditingController();
