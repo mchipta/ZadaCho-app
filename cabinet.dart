@@ -1084,7 +1084,7 @@ class ProfileGuest extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: RadialGradient(colors: [p.ac.withOpacity(.24), p.ac.withOpacity(0)], stops: const [0, .68]),
+            gradient: RadialGradient(radius: .707, colors: [p.ac.withOpacity(.30), p.ac.withOpacity(.12), p.ac.withOpacity(0)], stops: const [0, .55, .68]),
           ),
           child: Stack(clipBehavior: Clip.none, children: [
             Container(
