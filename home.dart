@@ -29,7 +29,11 @@ class HomeShell extends StatelessWidget {
         // после входа в аккаунт один раз спрашиваем «Где вы ищете?» (если регион ещё не выбирали)
         if (S.i.logged && !S.i.regionChosen && !S.i.regionAsked) {
           S.i.regionAsked = true;
-          Future.delayed(const Duration(milliseconds: 700), () {
+          Future.delayed(const Duration(milliseconds: 700), () async {
+            // сначала лист «Что ищете?», шторка региона — после него
+            for (var k = 0; k < 120 && S.i.intentOpen; k++) {
+              await Future.delayed(const Duration(milliseconds: 300));
+            }
             if (context.mounted && !S.i.regionChosen) showRegionSheet(context);
           });
         }

@@ -37,6 +37,7 @@ class _FeedPageState extends State<FeedPage> {
   bool _qfPhoto = false; // с фото
   bool _qfVer = false; // проверенные (ver или ИНН)
   bool _auto = false;
+  bool _intentShown = false;
   int _regionSeen = -1;
   LatLng? _ctr; // центр поиска, если его передвинули на карте (иначе — центр города)
 
@@ -46,6 +47,7 @@ class _FeedPageState extends State<FeedPage> {
     _qFocus.addListener(() {
       if (mounted) setState(() {});
     });
+    _type = S.i.feedType;
     _applyRegion();
     WidgetsBinding.instance.addPostFrameCallback((_) => S.i.loadAds().then((_) => Near.i.fill(S.i.ads)));
   }
@@ -71,8 +73,8 @@ class _FeedPageState extends State<FeedPage> {
     super.dispose();
   }
 
+  // выбранный в «Что ищете?» тип в счётчик не входит — это не фильтр, а запомненный выбор
   int get _activeFilters =>
-      (_type.isNotEmpty ? 1 : 0) +
       (_min.isNotEmpty ? 1 : 0) +
       (_max.isNotEmpty ? 1 : 0) +
       (_sort.isNotEmpty ? 1 : 0) +
@@ -244,7 +246,6 @@ class _FeedPageState extends State<FeedPage> {
 
   void _resetFilters() {
     setState(() {
-      _type = '';
       _cat = '';
       _city = '';
       _min = '';
@@ -446,8 +447,15 @@ class _FeedPageState extends State<FeedPage> {
                   ]),
                   title('Что нужно'),
                   Wrap(spacing: 8, runSpacing: 8, children: [
-                    _fChip(p, 'Любое', _type.isEmpty, () => upd(() => _type = '')),
-                    for (final t in kTypes) _fChip(p, t, _type == t, () => upd(() => _type = _type == t ? '' : t)),
+                    _fChip(p, 'Любое', _type.isEmpty, () {
+                      upd(() => _type = '');
+                      S.i.setFeedType('');
+                    }),
+                    for (final t in kTypes)
+                      _fChip(p, t, _type == t, () {
+                        upd(() => _type = _type == t ? '' : t);
+                        S.i.setFeedType(_type);
+                      }),
                   ]),
                   title('Где искать'),
                   _whereCard(p, c, upd),
@@ -528,6 +536,22 @@ class _FeedPageState extends State<FeedPage> {
           });
         }
         final pend = S.i.pendingSearch;
+        if (pend != null && !_intentShown) _intentShown = true; // поиск уже задан (сохранённый/с главной) — не спрашиваем
+        if (S.i.tab == 1 && !_intentShown && !S.i.feedTypeChosen) {
+          _intentShown = true;
+          S.i.intentOpen = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) {
+              S.i.intentOpen = false;
+              return;
+            }
+            final t = await showFeedIntentSheet(context);
+            S.i.intentOpen = false;
+            if (t == null) return;
+            await S.i.setFeedType(t);
+            if (mounted) setState(() => _type = t);
+          });
+        }
         if (pend != null) {
           S.i.pendingSearch = null;
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1056,8 +1080,9 @@ class _FeedPageState extends State<FeedPage> {
   Widget _header(BuildContext context, Pal p, int count) {
     final af = _activeFilters;
     final lab = _ssLabel(_curSS());
+    final labNoType = _ssLabel({..._curSS(), 'type': ''});
     // «Сохранить поиск» только когда пользователь что-то искал: текст, категория или фильтр
-    final canSave = S.i.logged && lab.isNotEmpty;
+    final canSave = S.i.logged && labNoType.isNotEmpty;
     final saved = canSave && S.i.ss.any((x) => _ssLabel(x) == lab);
     final sugs = _qFocus.hasFocus
         ? smartSuggest(_q.text, S.i.ads.map((a) => a.title))
@@ -1256,5 +1281,162 @@ class _FeedPageState extends State<FeedPage> {
         ]),
       ),
     ]);
+  }
+}
+
+
+/// Лист «Что ищете?» при первом заходе в поиск. Возвращает тип объявлений ('' — всё).
+Future<String?> showFeedIntentSheet(BuildContext context) {
+  final p = pal(context);
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  final surface = p.card; // без оранжевого оттенка, как в макете
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    isDismissible: false,
+    enableDrag: false,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withOpacity(.6),
+    builder: (c) => PopScope(
+      canPop: false,
+      onPopInvoked: (did) {
+        if (!did) Navigator.pop(c, ''); // «назад» = показать всё
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: p.bd),
+        ),
+        child: const SafeArea(top: false, child: SingleChildScrollView(child: _IntentBody())),
+      ),
+    ),
+  );
+}
+
+class _IntentBody extends StatefulWidget {
+  const _IntentBody();
+  @override
+  State<_IntentBody> createState() => _IntentBodyState();
+}
+
+class _IntentBodyState extends State<_IntentBody> {
+  int _sel = 0;
+  bool _done = false;
+  static final List<String> _types = [kTypes[1], kTypes[0], ''];
+
+  void _pick(int i, String type) {
+    if (_done) return;
+    haptic();
+    setState(() => _sel = i);
+  }
+
+  void _confirm() {
+    if (_done) return;
+    _done = true;
+    haptic();
+    Navigator.pop(context, _types[_sel]);
+  }
+
+  Widget _opt(Pal p, int i, IconData ic, String title, String sub, String type) {
+    final on = _sel == i;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final onBg = dark ? const Color(0xFF2B1A12) : Color.alphaBlend(p.ac.withOpacity(.08), p.card);
+    final offBg = dark ? const Color(0xFF16120F) : p.bg2;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Tap(
+        onTap: () => _pick(i, type),
+        scale: .98,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+          decoration: BoxDecoration(
+            color: on ? onBg : offBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: on ? p.ac : p.bd, width: on ? 1.6 : 1),
+          ),
+          child: Row(children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                gradient: on ? LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [p.ac, p.ac2]) : null,
+                color: on ? null : (dark ? const Color(0xFF2A2521) : p.card),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(ic, size: 24, color: on ? Colors.white : p.ac),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)),
+                const SizedBox(height: 3),
+                Text(sub, style: TextStyle(fontSize: 13.5, height: 1.3, color: p.mu)),
+              ]),
+            ),
+            const SizedBox(width: 10),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: on ? p.ac : p.bd, width: 2)),
+              child: Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  width: on ? 14 : 0,
+                  height: on ? 14 : 0,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: p.ac),
+                ),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Center(child: Container(width: 44, height: 4, decoration: BoxDecoration(color: p.mu.withOpacity(.45), borderRadius: BorderRadius.circular(99)))),
+        const SizedBox(height: 18),
+        Container(
+          width: 54,
+          height: 54,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [p.ac, p.ac2]),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: const Icon(Icons.search_rounded, color: Colors.white, size: 27),
+        ),
+        const SizedBox(height: 14),
+        Text('Что ищете?', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: p.tx, letterSpacing: -.5)),
+        const SizedBox(height: 6),
+        Text('Выбор запомнится, его можно поменять в фильтрах', style: TextStyle(color: p.mu, fontSize: 15, height: 1.4)),
+        const SizedBox(height: 18),
+        _opt(p, 0, Icons.people_alt_outlined, 'Ищу исполнителя', 'Нужно найти человека для задачи. Покажем «${kTypes[1]}»', kTypes[1]),
+        _opt(p, 1, Icons.work_outline_rounded, 'Ищу работу', 'Хочу взять заказ и заработать. Покажем «${kTypes[0]}»', kTypes[0]),
+        _opt(p, 2, Icons.grid_view_rounded, 'Показать всё', 'Все объявления без отбора', ''),
+        const SizedBox(height: 6),
+        Tap(
+          onTap: _confirm,
+          scale: .98,
+          child: Container(
+            height: 54,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [p.ac, p.ac2]),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [BoxShadow(color: p.ac.withOpacity(.3), blurRadius: 16, offset: const Offset(0, 6))],
+            ),
+            child: const Text('Продолжить', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+          ),
+        ),
+      ]),
+    );
   }
 }

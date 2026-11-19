@@ -44,6 +44,7 @@ class S extends ChangeNotifier {
   String phonePrivacy = 'all'; // all, reply, chat
   Map<String, bool> notifTypes = {'msg': true, 'reply': true, 'ss': true, 'rev': true};
   bool dndOn = false;
+  bool intentOpen = false; // открыт лист «Что ищете?» — шторку региона ждём
   bool regionAsked = false; // шторку «Где вы ищете?» за запуск показываем один раз
   String dndFrom = '22:00';
   String dndTo = '08:00';
@@ -429,6 +430,15 @@ class S extends ChangeNotifier {
     await prefs.setString('ss', jsonEncode(ss));
     notifyListeners();
   }
+
+  // «Что ищете?»: тип объявлений для ленты запоминается ('' — показать всё)
+  bool get feedTypeChosen => prefs.containsKey('feed_type');
+  String get feedType {
+    final t = prefs.getString('feed_type') ?? '';
+    return t == kTypes[0] || t == kTypes[1] ? t : '';
+  }
+
+  Future<void> setFeedType(String t) => prefs.setString('feed_type', t);
 
   // «Регион для поиска» из настроек: город, радиус и «сначала из города» по умолчанию для ленты
   bool get regionChosen => prefs.containsKey('region_city');

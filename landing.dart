@@ -70,6 +70,7 @@ class _LandingPageState extends State<LandingPage> {
   String get _type => kTypes[_mode == 0 ? 0 : 1];
 
   void _search({String category = ''}) {
+    S.i.setFeedType(_type); // выбор на главной запоминается и для ленты
     S.i.pendingSearch = {
       'q': _q.text.trim(),
       'type': _type,
@@ -83,6 +84,7 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   void _category(String category) {
+    S.i.setFeedType(_type);
     S.i.pendingSearch = {
       'q': '',
       'type': _type,
