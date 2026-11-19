@@ -119,7 +119,7 @@ class _CabinetPageState extends State<CabinetPage> {
     try {
       await Api.call(a, d);
       if (mounted) toast(context, okMsg);
-      if (a == 'status' || a == 'del' || a == 'bump' || a == 'urgent' || a == 'renew') S.i.loadAds();
+      if (a == 'status' || a == 'del' || a == 'bump' || a == 'renew') S.i.loadAds();
       await _load();
       return true;
     } catch (e) {

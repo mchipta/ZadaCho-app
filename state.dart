@@ -399,7 +399,7 @@ class S extends ChangeNotifier {
     refreshUnread();
   }
 
-  static const _ssKeys = ['q', 'type', 'cat', 'city', 'min', 'max', 'pt', 'wh', 'urg'];
+  static const _ssKeys = ['q', 'type', 'cat', 'city', 'min', 'max', 'pt', 'wh'];
   bool _ssSame(Map<String, String> a, Map<String, dynamic> b) => _ssKeys.every((k) => (a[k] ?? '') == (b[k] ?? '').toString());
 
   // Сохранённые поиски лежат на сервере: так приходит push «Новое по вашему поиску» и поиски есть на всех устройствах

@@ -50,7 +50,6 @@ class _PostScreenState extends State<PostScreen> {
   TimeOfDay? whenTime; // и время (необязательно)
   String dur = ''; // длительность
   int need = 1; // сколько людей нужно
-  bool urgent = false; // метка «Срочно»
   bool autoRenew = true; // автопродление каждые 30 дней
   List<_Ph> photos = [];
   bool showPhone = true;
@@ -94,7 +93,6 @@ class _PostScreenState extends State<PostScreen> {
       }
       dur = e.dur;
       need = e.need > 0 ? e.need : 1;
-      urgent = e.urgent;
       autoRenew = e.autoRenew;
     }
     for (final c in [title, payA, city, addr, desc, phone]) {
@@ -249,7 +247,6 @@ class _PostScreenState extends State<PostScreen> {
     whenTime = null;
     dur = '';
     need = 1;
-    urgent = false;
     cat = kCats.first.name;
     photos = [];
     showPhone = true;
@@ -504,13 +501,11 @@ class _PostScreenState extends State<PostScreen> {
         'need': type == 0 ? need : '',
         if (unit != 'x') 'payType': const {'h': 'hour', 'd': 'day', 't': 'job', 'm': 'month', 'n': 'neg'}[unit],
         if (unit != 'x' && unit != 'n') 'payAmt': digitsOnly(payA.text),
-        'urgent': urgent,
         'autoRenew': autoRenew,
       };
       if (_isEdit) {
         data['id'] = widget.edit!.id;
         await Api.call('edit', data);
-        if (urgent != widget.edit!.urgent) await Api.call('urgent', {'id': widget.edit!.id, 'on': urgent});
       } else {
         newId = ((await Api.call('add', data))['id'] ?? '').toString();
       }
@@ -992,16 +987,11 @@ class _PostScreenState extends State<PostScreen> {
       const SizedBox(height: 14),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
-        value: urgent,
-        activeColor: p.ac,
-        title: Text('Срочно', style: TextStyle(fontWeight: FontWeight.w800, color: p.tx)),
-        subtitle: Text('Метка на карточке и показ выше на 3 дня', style: TextStyle(color: p.mu, fontSize: 13)),
-        onChanged: (v) => _set(() => urgent = v),
-      ),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
         value: autoRenew,
-        activeColor: p.ok,
+        activeColor: Colors.white,
+        activeTrackColor: p.ac,
+        inactiveThumbColor: Colors.white,
+        inactiveTrackColor: p.mu.withOpacity(.45),
         title: Text('Автопродление', style: TextStyle(fontWeight: FontWeight.w800, color: p.tx)),
         subtitle: Text('Автоматически продлевать каждые 30 дней, пока объявление открыто', style: TextStyle(color: p.mu, fontSize: 13)),
         onChanged: (v) => _set(() => autoRenew = v),

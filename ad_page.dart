@@ -154,8 +154,6 @@ class _AdPageState extends State<AdPage> {
               child: menuRow(context, ad.status == 'open' ? Icons.visibility_off_outlined : Icons.publish_rounded, ad.status == 'open' ? 'Снять с публикации' : 'Опубликовать')),
         if (mine && ad.status == 'open')
           PopupMenuItem(value: 'promo', child: menuRow(context, Icons.rocket_launch_outlined, 'Продвижение')),
-        if (mine && ad.status == 'open')
-          PopupMenuItem(value: 'urgent', child: menuRow(context, Icons.bolt_rounded, ad.urgent ? 'Снять «Срочно»' : 'Отметить «Срочно»')),
         if (mine && renewable)
           PopupMenuItem(value: 'renew', child: menuRow(context, Icons.autorenew_rounded, 'Объявление актуально')),
         PopupMenuItem(value: 'share', child: menuRow(context, Icons.send_outlined, 'Поделиться')),
@@ -171,7 +169,6 @@ class _AdPageState extends State<AdPage> {
           ad.status == 'open' ? 'Объявление снято' : 'Объявление снова опубликовано');
     }
     if (v == 'promo') showPromoSheet(context, ad: ad);
-    if (v == 'urgent') _own('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня');
     if (v == 'renew') _own('renew', {'id': ad.id}, 'Спасибо, объявление продлено');
   }
 
@@ -257,7 +254,6 @@ class _AdPageState extends State<AdPage> {
                           typeTag(context, ad.type),
                           CatChip(ad.category),
                           if (ad.status == 'closed') Tag('Закрыто', p.mu),
-                          if (ad.urgent) Tag('Срочно', p.dng),
                           if (ad.ts > 0 && DateTime.now().millisecondsSinceEpoch - ad.ts < 3 * 3600000) Tag('Новое', p.ac),
                           if (ad.innOk) Tag('Самозанятый · ИНН', p.ok),
                         ]),

@@ -33,7 +33,6 @@ class _FeedPageState extends State<FeedPage> {
   int get _radKm => int.tryParse(_rad) ?? 0;
   VoidCallback? _filterRefresh; // перерисовать открытый экран фильтров
   String _pt = '', _wh = ''; // тип оплаты и когда нужно (today / tomorrow / week)
-  bool _urg = false; // только срочные
   bool _qfPhoto = false; // с фото
   bool _qfVer = false; // проверенные (ver или ИНН)
   bool _auto = false;
@@ -92,7 +91,6 @@ class _FeedPageState extends State<FeedPage> {
         if (_sort == 'soon') 'Сначала ближайшие по дате',
         if (_pt.isNotEmpty) payTypeLabel(_pt),
         if (_wh.isNotEmpty) _whLabel(_wh),
-        if (_urg) 'Срочно',
       ].join(' · ');
 
   static String _whLabel(String w) => w == 'today' ? 'Сегодня' : w == 'tomorrow' ? 'Завтра' : w == 'week' ? 'На неделе' : '';
@@ -134,7 +132,6 @@ class _FeedPageState extends State<FeedPage> {
       if (q.isNotEmpty && !smartMatchAd(q, a.title, a.desc, a.category, a.city, a.addr)) return false;
       if (mn > 0 && (n == null || n < mn)) return false;
       if (mx > 0 && (n == null || n > mx)) return false;
-      if (_urg && !a.urgent) return false;
       if (_qfPhoto && a.imgs.isEmpty) return false;
       if (_qfVer && !(a.ver || a.innOk)) return false;
       if (_pt.isNotEmpty && _ptOf(a) != _pt) return false;
@@ -173,7 +170,6 @@ class _FeedPageState extends State<FeedPage> {
         final x = Near.i.kmOr(a), y = Near.i.kmOr(b);
         if (x != y) return x.compareTo(y);
       }
-      if (a.urgent != b.urgent && _sort.isEmpty) return a.urgent ? -1 : 1;
       return b.up.compareTo(a.up);
     });
     return r;
@@ -191,7 +187,6 @@ class _FeedPageState extends State<FeedPage> {
       (s['rad'] ?? '').isEmpty ? '' : 'до ${s['rad']} км',
       (s['pt'] ?? '').isEmpty ? '' : payTypeLabel(s['pt']!),
       (s['wh'] ?? '').isEmpty ? '' : _whLabel(s['wh']!),
-      s['urg'] == '1' ? 'Срочно' : '',
     ].where((e) => e.isNotEmpty).toList();
     return parts.join(' · ');
   }
@@ -207,7 +202,6 @@ class _FeedPageState extends State<FeedPage> {
         'rad': _rad,
         'pt': _pt,
         'wh': _wh,
-        'urg': _urg ? '1' : '',
       };
 
   void _saveSearch() {
@@ -237,7 +231,6 @@ class _FeedPageState extends State<FeedPage> {
       _rad = s['rad'] ?? '';
       _pt = s['pt'] ?? '';
       _wh = s['wh'] ?? '';
-      _urg = s['urg'] == '1';
       _cityC.text = _city;
       _minC.text = _min;
       _maxC.text = _max;
@@ -254,7 +247,6 @@ class _FeedPageState extends State<FeedPage> {
       _rad = '';
       _pt = '';
       _wh = '';
-      _urg = false;
       _qfPhoto = false;
       _qfVer = false;
       _minC.clear();

@@ -837,12 +837,6 @@ class AdCard extends StatelessWidget {
         const SizedBox(width: 6),
         Text(ad.type, maxLines: 1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: p.tx)),
       ]),
-      if (ad.urgent)
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-          decoration: BoxDecoration(color: p.dng.withOpacity(.14), borderRadius: BorderRadius.circular(6)),
-          child: Text('Срочно', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: p.dng)),
-        ),
       if (isNew)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
@@ -1718,7 +1712,7 @@ class OwnerPanel extends StatelessWidget {
           ]),
         );
 
-    // активное: изменить, снять, срочно, поделиться; снятое: опубликовать снова или удалить; скрытое модератором: только изменить
+    // активное: изменить, снять, продвижение; снятое: опубликовать снова или удалить; скрытое модератором: только изменить
     final btns = <Widget>[
       if (isOpen || hidden) icon(Icons.edit_outlined, 'Изменить', onEdit),
       if (isOpen) icon(Icons.visibility_off_outlined, 'Снять', onToggle, color: p.dng),

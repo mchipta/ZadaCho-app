@@ -425,7 +425,6 @@ String ssLabel(Map<String, String> s) {
     s['sort'] == 'hi' ? 'дороже' : s['sort'] == 'lo' ? 'дешевле' : s['sort'] == 'soon' ? 'ближайшие' : '',
     (s['pt'] ?? '').isEmpty ? '' : payTypeLabel(s['pt']!),
     s['wh'] == 'today' ? 'сегодня' : s['wh'] == 'tomorrow' ? 'завтра' : s['wh'] == 'week' ? 'на неделе' : '',
-    s['urg'] == '1' ? 'срочно' : '',
   ].where((e) => e.isNotEmpty).toList();
   return parts.join(' · ');
 }
