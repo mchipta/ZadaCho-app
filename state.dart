@@ -254,7 +254,17 @@ class S extends ChangeNotifier {
       _msgs = 0;
       _dlgs = 0;
       _unreadInit = false;
-      if (tab == 4) tab = 0; // вкладка «Сообщения» только для вошедших
+      if (wasLogged) {
+        // вышли (или сессия истекла): «Где вы ищете?» и «Что ищете?» спросим заново при следующем входе, гость начинает с главной
+        await prefs.remove('region_city');
+        await prefs.remove('region_rad');
+        await prefs.remove('region_first');
+        await prefs.remove('feed_type');
+        regionAsked = false;
+        regionOpen = false;
+        intentArmed = false;
+        tab = 0;
+      }
     } else if (!wasLogged) {
       intentArmed = true; // только что вошли
       if (tab == 0 || tab == 3) tab = 1;
@@ -444,7 +454,11 @@ class S extends ChangeNotifier {
     return t == kTypes[0] || t == kTypes[1] ? t : '';
   }
 
-  Future<void> setFeedType(String t) => prefs.setString('feed_type', t);
+  // запоминаем только вошедшему: у каждого входа свой выбор «Что ищете?»
+  Future<void> setFeedType(String t) async {
+    if (!logged) return;
+    await prefs.setString('feed_type', t);
+  }
 
   // «Регион для поиска» из настроек: город, радиус и «сначала из города» по умолчанию для ленты
   bool get regionChosen => prefs.containsKey('region_city');

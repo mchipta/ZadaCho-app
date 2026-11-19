@@ -53,6 +53,13 @@ text = text.replace('<application', perm, 1)
 # 2. Название
 text = re.sub(r'android:label="[^"]*"', 'android:label="ЗадаЧО"', text, count=1)
 
+# 2.1. Без автобэкапа Android: иначе после удаления и установки заново система возвращает
+# сохранённый вход (токен) и настройки, и приложение открывается уже «залогиненным»
+text = re.sub(r'android:allowBackup="[^"]*"\s*', '', text)
+text = re.sub(r'android:fullBackupContent="[^"]*"\s*', '', text)
+text = re.sub(r'android:dataExtractionRules="[^"]*"\s*', '', text)
+text = re.sub(r'<application\b', '<application android:allowBackup="false"', text, count=1)
+
 # 3. Снимаем LAUNCHER с MainActivity и вешаем его на алиасы
 pattern = r'(<activity\b[^>]*android:name="[^"]*MainActivity"[^>]*>)(.*?)(</activity>)'
 m = re.search(pattern, text, re.S)
