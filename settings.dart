@@ -1683,8 +1683,7 @@ const _cCyan = Color(0xFF1FB6D4), _cBlue = Color(0xFF4C8DFF), _cPurple = Color(0
 /// Шторка «Где вы ищете?» после первого входа (как на сайте): город, определение по геолокации, «Пропустить»
 Future<void> showRegionSheet(BuildContext context) {
   final p = pal(context);
-  final dark = Theme.of(context).brightness == Brightness.dark;
-  final surface = Color.alphaBlend(p.ac.withOpacity(dark ? .12 : .05), p.card);
+  final surface = p.card; // нейтральный фон, без оранжевого оттенка
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -1694,8 +1693,7 @@ Future<void> showRegionSheet(BuildContext context) {
       decoration: BoxDecoration(
         color: surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border.all(color: p.ac.withOpacity(.4), width: 1.2),
-        boxShadow: [BoxShadow(color: p.ac.withOpacity(.22), blurRadius: 32, offset: const Offset(0, -6))],
+        border: Border.all(color: p.bd),
       ),
       child: SafeArea(
         top: false,

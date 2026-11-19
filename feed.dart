@@ -1288,7 +1288,6 @@ class _FeedPageState extends State<FeedPage> {
 /// Лист «Что ищете?» при первом заходе в поиск. Возвращает тип объявлений ('' — всё).
 Future<String?> showFeedIntentSheet(BuildContext context) {
   final p = pal(context);
-  final dark = Theme.of(context).brightness == Brightness.dark;
   final surface = p.card; // без оранжевого оттенка, как в макете
   return showModalBottomSheet<String>(
     context: context,
