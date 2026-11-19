@@ -768,7 +768,7 @@ class AdCard extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(12),
-          decoration: cardDeco(p, r: 24),
+          decoration: adCardDeco(p, r: 24, hl: ad.hl),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               SizedBox(width: thumb, height: thumb, child: _cover(p, thumb)),
@@ -894,7 +894,7 @@ class AdCard extends StatelessWidget {
         scale: .98,
         child: Container(
           clipBehavior: Clip.antiAlias,
-          decoration: cardDeco(p, r: 16),
+          decoration: adCardDeco(p, r: 16, hl: ad.hl),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             AspectRatio(
               aspectRatio: 1.25,
@@ -948,7 +948,7 @@ class AdCard extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.fromLTRB(8, 8, 6, 8),
-          decoration: cardDeco(p, r: 16),
+          decoration: adCardDeco(p, r: 16, hl: ad.hl),
           child: Row(children: [
             SizedBox(width: 62, height: 62, child: _cover(p, 62)),
             const SizedBox(width: 10),
@@ -1658,7 +1658,7 @@ class EmptyState extends StatelessWidget {
 /// Панель владельца: статистика объявления по дням, автопродление и управление (в «Моих объявлениях» и на странице объявления)
 class OwnerPanel extends StatelessWidget {
   final Ad ad;
-  final VoidCallback onEdit, onToggle, onUrgent, onShare, onDelete;
+  final VoidCallback onEdit, onToggle, onPromo, onDelete;
   final VoidCallback? onRenew;
   final VoidCallback? onRepublish;
   final ValueChanged<bool>? onAutoRenew;
@@ -1667,81 +1667,12 @@ class OwnerPanel extends StatelessWidget {
     required this.ad,
     required this.onEdit,
     required this.onToggle,
-    required this.onUrgent,
-    required this.onShare,
+    required this.onPromo,
     required this.onDelete,
     this.onRenew,
     this.onRepublish,
     this.onAutoRenew,
   });
-
-  Widget _analytics(Pal p) {
-    final now = DateTime.now();
-    const wdays = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
-    final days = <Map<String, dynamic>>[];
-    var maxV = 1;
-    var totV = 0, totP = 0, totR = 0;
-    for (var i = 6; i >= 0; i--) {
-      final d = now.subtract(Duration(days: i));
-      final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-      final row = ad.dailyStats[key] is Map ? Map<String, dynamic>.from(ad.dailyStats[key] as Map) : <String, dynamic>{};
-      final v = (row['v'] as num?)?.toInt() ?? 0;
-      final ph = (row['p'] as num?)?.toInt() ?? 0;
-      final r = (row['r'] as num?)?.toInt() ?? 0;
-      if (v > maxV) maxV = v;
-      totV += v;
-      totP += ph;
-      totR += r;
-      days.add({'lbl': '${d.day} ${wdays[d.weekday - 1]}', 'v': v, 'p': ph, 'r': r});
-    }
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(Icons.bar_chart_rounded, size: 16, color: p.ac),
-          const SizedBox(width: 6),
-          Expanded(child: Text('Аналитика за 7 дней', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: p.tx))),
-          Icon(Icons.visibility_outlined, size: 15, color: p.ac),
-          const SizedBox(width: 3),
-          Text('$totV', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: p.tx)),
-          const SizedBox(width: 10),
-          Icon(Icons.phone_outlined, size: 15, color: p.ac),
-          const SizedBox(width: 3),
-          Text('$totP', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: p.tx)),
-          const SizedBox(width: 10),
-          Icon(Icons.chat_bubble_outline_rounded, size: 15, color: p.ac),
-          const SizedBox(width: 3),
-          Text('$totR', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: p.tx)),
-        ]),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 54,
-          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            for (final d in days)
-              Expanded(
-                child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Text('${d['v']}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: (d['v'] as int) > 0 ? p.tx : p.mu)),
-                  const SizedBox(height: 3),
-                  Container(
-                    height: (6 + ((d['v'] as int) / maxV) * 22).clamp(4.0, 28.0),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      gradient: (d['v'] as int) > 0 ? LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.bottomCenter, end: Alignment.topCenter) : null,
-                      color: (d['v'] as int) > 0 ? null : p.bd,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(d['lbl'] as String, style: TextStyle(fontSize: 9.5, color: p.mu)),
-                ]),
-              ),
-          ]),
-        ),
-      ]),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1791,18 +1722,18 @@ class OwnerPanel extends StatelessWidget {
       if (isOpen || hidden) icon(Icons.edit_outlined, 'Изменить', onEdit),
       if (isOpen) icon(Icons.visibility_off_outlined, 'Снять', onToggle, color: p.dng),
       if (!isOpen && !hidden) icon(Icons.publish_rounded, 'Опубликовать снова', onRepublish ?? onToggle, color: p.ok),
-      if (isOpen) icon(Icons.bolt_rounded, ad.urgent ? 'Без «Срочно»' : 'Срочно', onUrgent, on: ad.urgent),
-      if (isOpen) icon(Icons.ios_share_rounded, 'Поделиться', onShare),
+      if (isOpen) icon(Icons.bolt_rounded, 'Продвижение', onPromo, on: ad.hl),
       if (!isOpen && !hidden) icon(Icons.delete_outline_rounded, 'Удалить', onDelete, color: p.dng),
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Tag(hidden ? 'Скрыто' : isOpen ? 'Активно' : 'Снято', hidden ? p.dng : isOpen ? p.ok : p.mu),
+        if (isOpen && ad.hl) ...[const SizedBox(width: 6), Tag('Выделено', p.ac)],
         const SizedBox(width: 10),
         Expanded(child: Text('Обновлено ${ago(upd)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13))),
       ]),
-      _analytics(p),
+      _OwnerAnalytics(ad: ad),
       if (onAutoRenew != null && !hidden) ...[
         const SizedBox(height: 8),
         Container(
@@ -1852,6 +1783,112 @@ class OwnerPanel extends StatelessWidget {
         ],
       ]),
     ]);
+  }
+}
+
+/// Аналитика за 7 дней: в свёрнутом виде одна строка с итогами, по нажатию раскрывается график по дням (как на ПК-версии сайта)
+class _OwnerAnalytics extends StatefulWidget {
+  final Ad ad;
+  const _OwnerAnalytics({required this.ad});
+  @override
+  State<_OwnerAnalytics> createState() => _OwnerAnalyticsState();
+}
+
+class _OwnerAnalyticsState extends State<_OwnerAnalytics> {
+  bool open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final ad = widget.ad;
+    final now = DateTime.now();
+    const wdays = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+    final days = <Map<String, dynamic>>[];
+    var maxV = 1;
+    var totV = 0, totP = 0, totR = 0;
+    for (var i = 6; i >= 0; i--) {
+      final d = now.subtract(Duration(days: i));
+      final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      final row = ad.dailyStats[key] is Map ? Map<String, dynamic>.from(ad.dailyStats[key] as Map) : <String, dynamic>{};
+      final v = (row['v'] as num?)?.toInt() ?? 0;
+      final ph = (row['p'] as num?)?.toInt() ?? 0;
+      final r = (row['r'] as num?)?.toInt() ?? 0;
+      if (v > maxV) maxV = v;
+      totV += v;
+      totP += ph;
+      totR += r;
+      days.add({'lbl': '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}', 'v': v});
+    }
+    Widget stat(IconData ic, int n) => Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(ic, size: 15, color: p.ac),
+          const SizedBox(width: 3),
+          Text('$n', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: p.tx)),
+        ]);
+    return Tap(
+      onTap: () => setState(() => open = !open),
+      scale: .99,
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            Expanded(child: Text('Аналитика за 7 дней', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: p.tx))),
+            stat(Icons.visibility_outlined, totV),
+            const SizedBox(width: 10),
+            stat(Icons.phone_outlined, totP),
+            const SizedBox(width: 10),
+            stat(Icons.chat_bubble_outline_rounded, totR),
+            const SizedBox(width: 6),
+            AnimatedRotation(
+              turns: open ? .5 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: p.mu),
+            ),
+          ]),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: open
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: SizedBox(
+                      height: 92,
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        for (final d in days)
+                          Expanded(
+                            child: Column(children: [
+                              Text('${d['v']}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: (d['v'] as int) > 0 ? p.tx : p.mu)),
+                              const SizedBox(height: 3),
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: FractionallySizedBox(
+                                    heightFactor: (d['v'] as int) > 0 ? (((d['v'] as int) / maxV) * .86 + .14).clamp(.14, 1.0) : .06,
+                                    child: Container(
+                                      width: 24,
+                                      decoration: BoxDecoration(
+                                        gradient: (d['v'] as int) > 0 ? LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.bottomCenter, end: Alignment.topCenter) : null,
+                                        color: (d['v'] as int) > 0 ? null : p.bd,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              FittedBox(fit: BoxFit.scaleDown, child: Text(d['lbl'] as String, style: TextStyle(fontSize: 10, color: p.mu))),
+                            ]),
+                          ),
+                      ]),
+                    ),
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
+        ]),
+      ),
+    );
   }
 }
 

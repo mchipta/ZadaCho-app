@@ -36,7 +36,7 @@ class Api {
   // Одно общее соединение: не тратим время на новое подключение при каждом запросе
   static final http.Client _client = http.Client();
   // Запросы только на чтение можно безопасно повторить, если сервер Apps Script «просыпается» или занят
-  static const _safe = {'ads', 'pushes', 'unread', 'dialogs', 'thread', 'profile', 'site', 'legal', 'posts'};
+  static const _safe = {'ads', 'pushes', 'unread', 'dialogs', 'thread', 'profile', 'site', 'legal', 'posts', 'promoCfg'};
 
   // Какие способы входа включены на сервере (Яндекс ID, VK ID)
   static Future<Set<String>> oauthProviders() async {

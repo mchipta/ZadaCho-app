@@ -72,6 +72,8 @@ class Ad {
   final int payAmt, need, up, upd, dn, since; // сумма, нужно людей, «поднято», обновлено, выполнено работ, на сервисе с
   final String payType, when, dur; // тип оплаты (hour/day/job/neg), дата и время работы, длительность
   final bool urgent;
+  final int hlUntil; // выделение цветом действует до (мс), 0 — нет
+  final bool hl; // объявление выделено цветом
   final bool ver;
   final bool innOk;
   final bool autoRenew;
@@ -111,6 +113,8 @@ class Ad {
     this.when = '',
     this.dur = '',
     this.urgent = false,
+    this.hl = false,
+    this.hlUntil = 0,
     this.innOk = false,
     this.autoRenew = false,
     this.dailyStats = const {},
@@ -152,6 +156,8 @@ class Ad {
       when: s('when'),
       dur: s('dur'),
       urgent: j['urgent'] == true,
+      hl: (j['hl'] == true || (j['hl'] is num && (j['hl'] as num) > 0)) && (_int(j['hlUntil']) == 0 || _int(j['hlUntil']) > DateTime.now().millisecondsSinceEpoch),
+      hlUntil: _int(j['hlUntil']),
       innOk: j['innOk'] == true,
       autoRenew: j['autoRenew'] == true,
       dailyStats: ds is Map ? Map<String, dynamic>.from(ds) : const {},

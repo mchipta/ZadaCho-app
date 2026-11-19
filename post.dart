@@ -9,6 +9,7 @@ import 'api.dart';
 import 'auth.dart';
 import 'map_page.dart';
 import 'models.dart';
+import 'promo.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'util.dart';
@@ -484,6 +485,7 @@ class _PostScreenState extends State<PostScreen> {
         }
       }
       if (mounted) setState(() => status = 'Публикуем…');
+      var newId = '';
       final data = <String, dynamic>{
         'type': kTypes[type],
         'title': t,
@@ -510,7 +512,7 @@ class _PostScreenState extends State<PostScreen> {
         await Api.call('edit', data);
         if (urgent != widget.edit!.urgent) await Api.call('urgent', {'id': widget.edit!.id, 'on': urgent});
       } else {
-        await Api.call('add', data);
+        newId = ((await Api.call('add', data))['id'] ?? '').toString();
       }
       if (city.text.trim().isNotEmpty) await S.i.prefs.setString('last_city', city.text.trim());
       await S.i.loadAds();
@@ -525,6 +527,13 @@ class _PostScreenState extends State<PostScreen> {
         _autoCity();
         S.i.goTab(6);
         toast(context, 'Объявление опубликовано');
+        // как на сайте: сразу предлагаем выделить объявление или поднять его в ленте
+        if (newId.isNotEmpty) {
+          final ttl = t;
+          Future.delayed(const Duration(milliseconds: 400), () {
+            if (mounted) showPromoSheet(context, id: newId, title: ttl, fresh: true);
+          });
+        }
       }
     } catch (e) {
       if (mounted) setState(() => err = S.i.fail(e));

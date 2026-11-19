@@ -150,6 +150,21 @@ BoxDecoration cardDeco(Pal p, {double r = 20}) => BoxDecoration(
       ],
     );
 
+// Карточка объявления: выделенное (продвижение) — тёплый градиент и рамка акцентного цвета, как на сайте
+BoxDecoration adCardDeco(Pal p, {double r = 20, bool hl = false}) {
+  if (!hl) return cardDeco(p, r: r);
+  return BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color.alphaBlend(p.ac.withOpacity(.16), p.card), Color.alphaBlend(p.ac2.withOpacity(.06), p.card)],
+    ),
+    borderRadius: BorderRadius.circular(r),
+    border: Border.all(color: Color.alphaBlend(p.ac.withOpacity(.55), p.bd)),
+    boxShadow: [BoxShadow(color: p.ac.withOpacity(.18), blurRadius: 16, offset: const Offset(0, 4))],
+  );
+}
+
 InputDecoration deco(BuildContext c, String? label, {String? hint, Widget? suffix, Widget? prefix}) {
   final p = pal(c);
   OutlineInputBorder ob(Color col, [double w = 1]) => OutlineInputBorder(

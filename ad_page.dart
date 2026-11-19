@@ -12,6 +12,7 @@ import 'models.dart';
 import 'near.dart';
 import 'post.dart';
 import 'profile.dart';
+import 'promo.dart';
 import 'share.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -152,6 +153,8 @@ class _AdPageState extends State<AdPage> {
               value: 'toggle',
               child: menuRow(context, ad.status == 'open' ? Icons.visibility_off_outlined : Icons.publish_rounded, ad.status == 'open' ? 'Снять с публикации' : 'Опубликовать')),
         if (mine && ad.status == 'open')
+          PopupMenuItem(value: 'promo', child: menuRow(context, Icons.rocket_launch_outlined, 'Продвижение')),
+        if (mine && ad.status == 'open')
           PopupMenuItem(value: 'urgent', child: menuRow(context, Icons.bolt_rounded, ad.urgent ? 'Снять «Срочно»' : 'Отметить «Срочно»')),
         if (mine && renewable)
           PopupMenuItem(value: 'renew', child: menuRow(context, Icons.autorenew_rounded, 'Объявление актуально')),
@@ -167,6 +170,7 @@ class _AdPageState extends State<AdPage> {
       _own('status', {'id': ad.id, 's': ad.status == 'open' ? 'closed' : 'open'},
           ad.status == 'open' ? 'Объявление снято' : 'Объявление снова опубликовано');
     }
+    if (v == 'promo') showPromoSheet(context, ad: ad);
     if (v == 'urgent') _own('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня');
     if (v == 'renew') _own('renew', {'id': ad.id}, 'Спасибо, объявление продлено');
   }

@@ -12,9 +12,9 @@ import 'messages.dart';
 import 'models.dart';
 import 'post.dart';
 import 'profile.dart';
+import 'promo.dart';
 import 'review.dart';
 import 'settings.dart';
-import 'share.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'util.dart';
@@ -673,7 +673,8 @@ class _CabinetPageState extends State<CabinetPage> {
   List<Widget> _myAds(Pal p) {
     final all = _list('ads');
     final open = all.where((a) => a['status'] == 'open').length;
-    final shown = all.where((a) => caf == 'all' ? true : caf == 'open' ? a['status'] == 'open' : a['status'] != 'open').toList();
+    final shown = all.where((a) => caf == 'all' ? true : caf == 'open' ? a['status'] == 'open' : a['status'] != 'open').toList()
+      ..sort((a, b) => ((b['ts'] as num?) ?? 0).compareTo((a['ts'] as num?) ?? 0)); // сверху самые новые
     Widget f(String key, String label, int n) {
       final on = caf == key;
       return Padding(
@@ -729,8 +730,7 @@ class _CabinetPageState extends State<CabinetPage> {
           onToggle: () => _act('status', {'id': ad.id, 's': isOpen ? 'closed' : 'open'}, isOpen ? 'Объявление снято' : 'Объявление снова опубликовано'),
           onRepublish: () => _act('republish', {'id': ad.id}, 'Объявление опубликовано снова и поднято в ленте'),
           onAutoRenew: (v) => _act('autoRenew', {'id': ad.id, 'on': v}, v ? 'Автопродление включено' : 'Автопродление выключено'),
-          onUrgent: () => _act('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня'),
-          onShare: () => showShare(context, ad),
+          onPromo: () => showPromoSheet(context, ad: ad),
           onDelete: () => _confirmDelete(ad),
           onRenew: (isOpen && DateTime.now().millisecondsSinceEpoch - ad.upd > 14 * 86400000)
               ? () => _act('renew', {'id': ad.id}, 'Спасибо, объявление продлено')
