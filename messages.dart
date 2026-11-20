@@ -462,7 +462,7 @@ class _MessagesPageState extends State<MessagesPage> {
                 ),
                 const SizedBox(width: 8),
                 if (_pins.contains(_k(d))) ...[Icon(Icons.push_pin_rounded, size: 14, color: p.mu), const SizedBox(width: 4)],
-                Text(siteListTime(_n(d['ts']), S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 11.5)),
+                if (_n(d['sup']) != 1) Text(siteListTime(_n(d['ts']), S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 11.5)),
               ]),
               const SizedBox(height: 2),
               if (_n(d['sup']) != 1) _adChip(p, d) else const SizedBox(height: 4),
@@ -1261,13 +1261,19 @@ class _ChatPageState extends State<ChatPage> {
               ? Center(child: err != null ? Text(err!, style: TextStyle(color: p.mu)) : CircularProgressIndicator(color: p.ac))
               : msgs.isEmpty
                   ? Center(
-                      child: _isSup
-                          ? Column(mainAxisSize: MainAxisSize.min, children: [
-                              Text('Поддержка работает 24/7', style: TextStyle(color: p.tx, fontSize: 15.5, fontWeight: FontWeight.w800)),
-                              const SizedBox(height: 4),
-                              Text('Пишите, ответим в порядке очереди', style: TextStyle(color: p.mu, fontSize: 14.5)),
-                            ])
-                          : Text('Напишите первое сообщение', style: TextStyle(color: p.mu, fontSize: 15)))
+                      // плашка с обводкой по центру экрана
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: _isSup ? const EdgeInsets.symmetric(horizontal: 22, vertical: 14) : const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                        decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(_isSup ? 22 : 99), border: Border.all(color: p.bd)),
+                        child: _isSup
+                            ? Column(mainAxisSize: MainAxisSize.min, children: [
+                                Text('Поддержка работает 24/7', textAlign: TextAlign.center, style: TextStyle(color: p.tx, fontSize: 15.5, fontWeight: FontWeight.w800)),
+                                const SizedBox(height: 4),
+                                Text('Пишите, ответим в порядке очереди', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 14.5)),
+                              ])
+                            : Text('Напишите первое сообщение', style: TextStyle(color: p.mu, fontSize: 15)),
+                      ))
                   : ListView.builder(
                       reverse: true,
                       padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + _barH),

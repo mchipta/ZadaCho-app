@@ -825,9 +825,9 @@ class _PostScreenState extends State<PostScreen> {
         onChanged: (_) {
           if (eTitle != null) setState(() => eTitle = null);
         },
-        decoration: _d(context, hint: 'Например: Нужны грузчики на 3 часа', error: eTitle).copyWith(counterText: ''),
+        decoration: _d(context, hint: type == 0 ? 'Например: Нужны грузчики на 3 часа' : 'Например: Грузчики, переезд и вывоз мусора', error: eTitle).copyWith(counterText: ''),
       ),
-      _helper(p, 'Коротко и понятно: что нужно сделать и когда', '${title.text.length}/90'),
+      _helper(p, type == 0 ? 'Коротко и понятно: что нужно сделать и когда' : 'Коротко: какую услугу вы предлагаете', '${title.text.length}/90'),
     ];
   }
 
@@ -851,9 +851,9 @@ class _PostScreenState extends State<PostScreen> {
         onChanged: (_) {
           if (eDesc != null) setState(() => eDesc = null);
         },
-        decoration: _d(context, hint: 'Что сделать, где, когда', error: eDesc).copyWith(counterText: ''),
+        decoration: _d(context, hint: type == 0 ? 'Что сделать, где, когда' : 'Чем занимаетесь, опыт, район, когда свободны', error: eDesc).copyWith(counterText: ''),
       ),
-      _helper(p, 'Напишите адрес или район, объём работы и когда нужно', '${desc.text.length}/2000'),
+      _helper(p, type == 0 ? 'Напишите адрес или район, объём работы и когда нужно' : 'Опишите, что умеете, ваш опыт, в каком районе работаете и когда свободны', '${desc.text.length}/2000'),
       _label(p, 'Оплата'),
       Wrap(spacing: 8, runSpacing: 8, children: [
         for (final u in order)

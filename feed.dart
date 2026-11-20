@@ -1082,8 +1082,11 @@ class _FeedPageState extends State<FeedPage> {
   Widget _header(BuildContext context, Pal p, int count) {
     final af = _activeFilters;
     final lab = _ssLabel(_curSS());
-    final labNoType = _ssLabel({..._curSS(), 'type': ''});
-    // «Сохранить поиск» только когда пользователь что-то искал: текст, категория или фильтр
+    // город по умолчанию (регион из настроек или определённый по геолокации) и радиус сами выбором не считаются
+    final defCity = <String>{S.i.regionCity.trim(), _autoCity.trim()}..remove('');
+    final cityPicked = _city.trim().isNotEmpty && !defCity.contains(_city.trim());
+    final labNoType = _ssLabel({..._curSS(), 'type': '', 'rad': '', 'city': cityPicked ? _city.trim() : ''});
+    // «Сохранить поиск» только когда пользователь что-то выбрал сам: текст, категория, город или фильтр
     final canSave = S.i.logged && labNoType.isNotEmpty;
     final saved = canSave && S.i.ss.any((x) => _ssLabel(x) == lab);
     final sugs = _qFocus.hasFocus
