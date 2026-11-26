@@ -430,8 +430,16 @@ class _FeedPageState extends State<FeedPage> {
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(16, 0, 16, 110 + MediaQuery.of(c).viewInsets.bottom),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Категория', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx, letterSpacing: -.2)),
+                  Text('Вид ленты', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx, letterSpacing: -.2)),
                   const SizedBox(height: 10),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (var i = 0; i < 3; i++)
+                      _fChip(p, const ['Список', 'Плитка', 'Компактно'][i], S.i.feedMode == i, () {
+                        S.i.setFeedMode(i);
+                        Navigator.pop(c);
+                      }, icon: const [Icons.view_agenda_outlined, Icons.grid_view_rounded, Icons.view_list_rounded][i]),
+                  ]),
+                  title('Категория'),
                   Wrap(spacing: 8, runSpacing: 8, children: [
                     for (final k in kCats)
                       _fChip(p, k.name, _cat == k.name, () => upd(() => _cat = _cat == k.name ? '' : k.name),
@@ -570,7 +578,8 @@ class _FeedPageState extends State<FeedPage> {
         final nb = _filtered(neighbors: true);
         if (_city.trim().isNotEmpty && _radKm > 0) WidgetsBinding.instance.addPostFrameCallback((_) => _prepNeighbors());
         return Scaffold(
-          body: SafeArea(
+          body: Stack(fit: StackFit.expand, children: [
+            SafeArea(
             bottom: false,
             child: RefreshIndicator(
               color: p.ac,
@@ -590,16 +599,18 @@ class _FeedPageState extends State<FeedPage> {
                     if (nb.isNotEmpty) ...[
                       SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: _nbHeader(p, list.isEmpty))),
                       SliverPadding(
-                        padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + navPad(context)),
+                        padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + 68 + navPad(context)),
                         sliver: S.i.feedMode == 1 ? _grid(context, nb) : _rows(context, nb),
                       ),
                     ] else
-                      SliverToBoxAdapter(child: SizedBox(height: 16 + navPad(context))),
+                      SliverToBoxAdapter(child: SizedBox(height: 16 + 68 + navPad(context))),
                   ],
                 ],
               ),
             ),
           ),
+          _mapFab(p),
+          ]),
         );
       },
     );
@@ -970,35 +981,35 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   // Единый переключатель: список, плитка, компактно | карта (все найденные объявления метками)
-  Widget _modeToggle(Pal p) {
-    const icons = [Icons.view_agenda_outlined, Icons.grid_view_rounded, Icons.view_list_rounded];
-    const tips = ['Список', 'Плитка', 'Компактно'];
-    Widget seg(IconData icon, String tip, bool on, VoidCallback f, {Color? tint}) => Tooltip(
-          message: tip,
-          child: Tap(
-            onTap: f,
-            scale: .9,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              width: 36,
-              height: 30,
-              decoration: BoxDecoration(
-                color: on ? p.ac.withOpacity(.16) : Colors.transparent,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(icon, size: 19, color: on ? p.ac : (tint ?? p.mu)),
+  void _openMap() => Navigator.push(context, MaterialPageRoute(builder: (_) => MapPage(ads: _filtered())));
+
+  // Плавающая кнопка «На карте» над нижним меню (вместо кнопок вида в ленте); при вводе с клавиатуры прячется
+  Widget _mapFab(Pal p) {
+    if (MediaQuery.of(context).viewInsets.bottom > 0 || _qFocus.hasFocus) return const SizedBox.shrink();
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: navPad(context) + 6,
+      child: Center(
+        child: Tap(
+          onTap: _openMap,
+          scale: .95,
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 22),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [p.ac, p.ac2]),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [BoxShadow(color: p.ac.withOpacity(.35), blurRadius: 18, offset: const Offset(0, 6))],
             ),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.location_on_rounded, color: Colors.white, size: 21),
+              SizedBox(width: 8),
+              Text('На карте', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15.5)),
+            ]),
           ),
-        );
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        for (var i = 0; i < 3; i++) seg(icons[i], tips[i], S.i.feedMode == i, () => S.i.setFeedMode(i)),
-        Container(width: 1, height: 18, margin: const EdgeInsets.symmetric(horizontal: 3), color: p.bd),
-        seg(Icons.location_on_outlined, 'Карта', false, () => Navigator.push(context, MaterialPageRoute(builder: (_) => MapPage(ads: _filtered()))), tint: p.ac),
-      ]),
+        ),
+      ),
     );
   }
 
@@ -1089,6 +1100,8 @@ class _FeedPageState extends State<FeedPage> {
     // «Сохранить поиск» только когда пользователь что-то выбрал сам: текст, категория, город или фильтр
     final canSave = S.i.logged && labNoType.isNotEmpty;
     final saved = canSave && S.i.ss.any((x) => _ssLabel(x) == lab);
+    // строку «Найдено» показываем, только если пользователь что-то ввёл или выбрал (город по умолчанию и тип не в счёт)
+    final hasF = labNoType.isNotEmpty || _qfPhoto || _qfVer;
     final sugs = _qFocus.hasFocus
         ? smartSuggest(_q.text, S.i.ads.map((a) => a.title))
         : const <String>[];
@@ -1248,7 +1261,7 @@ class _FeedPageState extends State<FeedPage> {
           ],
         ),
       ),
-      Padding(
+      if (hasF) Padding(
         padding: const EdgeInsets.fromLTRB(18, 10, 16, 8),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(
@@ -1280,11 +1293,10 @@ class _FeedPageState extends State<FeedPage> {
                 ),
                 const SizedBox(width: 8),
               ],
-              _modeToggle(p),
             ]),
           ),
         ]),
-      ),
+      ) else const SizedBox(height: 6),
     ]);
   }
 }
