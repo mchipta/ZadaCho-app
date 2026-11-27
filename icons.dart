@@ -6,7 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 const Map<String, String> _body = {
   'bell': '<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9zM10 20a2 2 0 0 0 4 0"/>',
   'bello': '<path d="M8.5 4.6A6 6 0 0 1 18 9c0 3 .7 4.9 1.5 6M6 9c0 6-2.5 7.5-2.5 7.5H15M10 20a2 2 0 0 0 4 0M3 3l18 18"/>',
-  'logo': '<rect x="3" y="3" width="18" height="18" rx="6"/><path d="M8 12l3 3 5-6"/>',
+  'logo': '<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"6\"/><path d=\"M9.5 8H12.1A1.9 1.9 0 0 1 12.1 11.8A2.1 2.1 0 0 1 12.1 16H9.5M12.1 11.8H11\"/>',
   'search': '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
   'sun': '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   'moon': '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',

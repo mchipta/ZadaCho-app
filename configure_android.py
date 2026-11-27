@@ -3,7 +3,7 @@
 Что делает:
   1. добавляет разрешения INTERNET, ACCESS_COARSE/FINE_LOCATION (геолокация «рядом»), RECORD_AUDIO, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, WAKE_LOCK, VIBRATE и запросы для звонков/ссылок;
   2. ставит название приложения «ЗадаЧО»;
-  3. создаёт алиас значка (оранжевый) и векторную иконку уведомлений ic_stat_zadacho (галочка ЗадаЧО + цветная крупная иконка приложения);
+  3. создаёт алиас значка (оранжевый) и векторную иконку уведомлений ic_stat_zadacho (знак «З» ЗадаЧО + цветная крупная иконка приложения);
   4. подключает Firebase Cloud Messaging (сервис ZadaChoFcmService): пуши приходят от сервера даже когда приложение полностью закрыто;
   5. пишет MainActivity с MethodChannel 'ru.zadacho.app/launcher_icon', 'ru.zadacho.app/notify' (включая нативную лёгкую вибрацию 'haptic'), ярлыками значка и записью/воспроизведением голоса.
 Любая ошибка останавливает сборку с понятным сообщением.
@@ -143,17 +143,20 @@ for name in ('icon_orange',):
         die('Нет файла %s' % src)
     shutil.copy(src, res / (name + '.png'))
 
-# Векторный силуэт логотипа «ЗадаЧО» (галочка в контуре) для статус-бара Android, чтобы не было белого квадрата
+# Векторный силуэт знака «З» для статус-бара Android (монохромная маска, чтобы не было белого квадрата)
 (res / 'ic_stat_zadacho.xml').write_text(
     '<?xml version="1.0" encoding="utf-8"?>\n'
     '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
     '    android:width="24dp"\n'
     '    android:height="24dp"\n'
-    '    android:viewportWidth="24"\n'
-    '    android:viewportHeight="24">\n'
+    '    android:viewportWidth="36"\n'
+    '    android:viewportHeight="36">\n'
     '    <path\n'
-    '        android:fillColor="#FFFFFFFF"\n'
-    '        android:pathData="M19,3H5C3.34,3 2,4.34 2,6v12c0,1.66 1.34,3 3,3h14c1.66,0 3,-1.34 3,-3V6C22,4.34 20.66,3 19,3zM10.2,16.6L5.8,12.2l1.7,-1.7l2.7,2.7l6.3,-6.3l1.7,1.7L10.2,16.6z"/>\n'
+    '        android:strokeColor="#FFFFFFFF"\n'
+    '        android:strokeWidth="7"\n'
+    '        android:strokeLineCap="round"\n'
+    '        android:strokeLineJoin="round"\n'
+    '        android:pathData="M10.6,3 H17.6 A7.2,7.2 0 0 1 17.6,17.4 A7.8,7.8 0 0 1 17.6,33 H10.6 M17.6,17.4 H14.1"/>\n'
     '</vector>\n',
     encoding='utf-8'
 )

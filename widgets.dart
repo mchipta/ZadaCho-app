@@ -474,9 +474,46 @@ class Logo extends StatelessWidget {
         gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(size * .3),
       ),
-      child: Icon(Icons.check_rounded, color: Colors.white, size: size * .68),
+      child: CustomPaint(size: Size(size, size), painter: ZPainter()),
     );
   }
+}
+
+// Знак «З» (логотип ЗадаЧО). t от 0 до 1 — дорисовка по мере анимации заставки.
+class ZPainter extends CustomPainter {
+  final double t;
+  const ZPainter([this.t = 1]);
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final k = s.width / 64;
+    Offset o(double x, double y) => Offset((x + .6) * k, y * k);
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6.5 * k
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final path = Path()
+      ..moveTo(o(24, 17).dx, o(24, 17).dy)
+      ..lineTo(o(31, 17).dx, o(31, 17).dy)
+      ..arcToPoint(o(31, 31.4), radius: Radius.circular(7.2 * k), clockwise: true)
+      ..arcToPoint(o(31, 47), radius: Radius.circular(7.8 * k), clockwise: true)
+      ..lineTo(o(24, 47).dx, o(24, 47).dy);
+    final tt = t.clamp(0.0, 1.0);
+    for (final m in path.computeMetrics()) {
+      canvas.drawPath(m.extractPath(0, m.length * tt), paint);
+    }
+    if (tt > .8) {
+      final mid = Path()
+        ..moveTo(o(31, 31.4).dx, o(31, 31.4).dy)
+        ..lineTo(o(27.5, 31.4).dx, o(27.5, 31.4).dy);
+      canvas.drawPath(mid, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(ZPainter old) => old.t != t;
 }
 
 class GradText extends StatelessWidget {

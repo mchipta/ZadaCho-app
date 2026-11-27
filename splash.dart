@@ -100,7 +100,7 @@ class _SplashState extends State<_Splash> with SingleTickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(29),
                         boxShadow: [BoxShadow(color: p.ac.withOpacity(.35), blurRadius: 34, offset: const Offset(0, 12))],
                       ),
-                      child: CustomPaint(size: const Size(96, 96), painter: _CheckPainter(check.value)),
+                      child: CustomPaint(size: const Size(96, 96), painter: ZPainter(check.value)),
                     ),
                   ),
                 ),
@@ -133,30 +133,4 @@ class _SplashState extends State<_Splash> with SingleTickerProviderStateMixin {
       ),
     );
   }
-}
-
-// Галочка, которая дорисовывается по мере анимации
-class _CheckPainter extends CustomPainter {
-  final double t;
-  _CheckPainter(this.t);
-
-  @override
-  void paint(Canvas canvas, Size s) {
-    final path = Path()
-      ..moveTo(s.width * .29, s.height * .53)
-      ..lineTo(s.width * .43, s.height * .67)
-      ..lineTo(s.width * .72, s.height * .35);
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = s.width * .09
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    for (final m in path.computeMetrics()) {
-      canvas.drawPath(m.extractPath(0, m.length * t.clamp(0.0, 1.0)), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_CheckPainter old) => old.t != t;
 }
