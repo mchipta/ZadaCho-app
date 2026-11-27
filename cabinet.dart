@@ -302,7 +302,11 @@ class _CabinetPageState extends State<CabinetPage> {
       ),
       const SizedBox(width: 10),
       box(
-        Text('$open', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: p.tx)),
+        Row(children: [
+          Text('$open', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: p.tx)),
+          const SizedBox(width: 6),
+          Icon(Icons.campaign_rounded, color: p.ac, size: 24),
+        ]),
         'объявлений',
         () { S.i.goTab(6); },
       ),
