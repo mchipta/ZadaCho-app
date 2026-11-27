@@ -985,11 +985,14 @@ class _FeedPageState extends State<FeedPage> {
 
   // Плавающая кнопка «На карте» над нижним меню (вместо кнопок вида в ленте); при вводе с клавиатуры прячется
   Widget _mapFab(Pal p) {
-    if (MediaQuery.of(context).viewInsets.bottom > 0 || _qFocus.hasFocus) return const SizedBox.shrink();
+    final mq = MediaQuery.of(context);
+    if (mq.viewInsets.bottom > 0 || _qFocus.hasFocus) return const SizedBox.shrink();
+    // реальная высота нижнего меню (Scaffold с extendBody отдаёт её в padding.bottom); navPad — запасной вариант
+    final bar = mq.padding.bottom > navPad(context) ? mq.padding.bottom : navPad(context);
     return Positioned(
       left: 0,
       right: 0,
-      bottom: navPad(context) + 6,
+      bottom: bar + 8,
       child: Center(
         child: Tap(
           onTap: _openMap,
