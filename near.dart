@@ -164,19 +164,16 @@ class Near extends ChangeNotifier {
     }
   }
 
-  /// Автоматически при открытии «Поиска»: если доступ уже есть — тихо обновляем,
-  /// если ещё не спрашивали — система покажет запрос (после отказа не чаще раза в 3 дня)
+  /// Автоматически при открытии «Поиска»: только если доступ уже есть — тихо обновляем.
+  /// Системный запрос показывается лишь по кнопке «Определить автоматически» (locate)
   Future<void> auto() async {
     _load();
     if (busy || disabled) return;
     if (_pos != null && DateTime.now().millisecondsSinceEpoch - ts < 300000) return;
     try {
       final perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.deniedForever) return;
-      if (perm == LocationPermission.denied) {
-        final asked = S.i.prefs.getInt('near_asked') ?? 0;
-        if (asked > 0 && DateTime.now().millisecondsSinceEpoch - asked < 259200000) return;
-      }
+      // сами разрешение не просим: только тихо обновляем место, если человек уже разрешил
+      if (perm != LocationPermission.whileInUse && perm != LocationPermission.always) return;
     } catch (_) {
       return;
     }

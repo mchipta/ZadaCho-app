@@ -186,13 +186,26 @@ class S extends ChangeNotifier {
     Future.delayed(const Duration(seconds: 8), () => i.checkAppUpdate(silent: true));
   }
 
-  static Future<void> requestPushPermission() async {
+  // ask: true — показать системный запрос на уведомления (только из «Сообщений» или по переключателю в настройках)
+  static Future<void> requestPushPermission({bool ask = false}) async {
     try {
-      final dev = await _notifyCh.invokeMethod('request');
+      final dev = await _notifyCh.invokeMethod('request', ask);
       if (dev is String && dev.trim().isNotEmpty) {
         Api.deviceName = 'Android · ${dev.trim()}';
       }
     } catch (_) {}
+  }
+
+  // Как на сайте: разрешение на уведомления просим не при запуске, а когда человек открыл «Сообщения» (один раз)
+  bool _pushAskedNow = false;
+  Future<void> askPushForMessages() async {
+    if (_pushAskedNow || !messageNotificationsEnabled) return;
+    _pushAskedNow = true;
+    if (prefs.getBool('push_asked') == true) return;
+    try {
+      await prefs.setBool('push_asked', true);
+    } catch (_) {}
+    await requestPushPermission(ask: true);
   }
 
   // Передаёт серверу токен устройства для push-уведомлений при закрытом приложении
@@ -740,7 +753,7 @@ class S extends ChangeNotifier {
     vibrate();
     messageNotificationsEnabled = enabled;
     await prefs.setBool('messages_notifications', enabled);
-    if (enabled) await requestPushPermission();
+    if (enabled) await requestPushPermission(ask: true);
     await syncBgPushState();
     notifyListeners();
   }

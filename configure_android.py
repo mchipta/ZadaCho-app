@@ -675,7 +675,8 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
                     "request" -> {
-                        if (Build.VERSION.SDK_INT >= 33 &&
+                        val ask = (call.arguments as? Boolean) ?: false
+                        if (ask && Build.VERSION.SDK_INT >= 33 &&
                             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), reqNotif)
                         }
@@ -715,10 +716,8 @@ class MainActivity : FlutterActivity() {
                         val title = (args?.get("title") as? String) ?: "ЗадаЧО"
                         val body = (args?.get("body") as? String) ?: ""
                         val sc = args?.get("shortcut") as? String
-                        if (Build.VERSION.SDK_INT >= 33 &&
-                            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), reqNotif)
-                        } else {
+                        if (Build.VERSION.SDK_INT < 33 ||
+                            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
                             ZadaChoNotif.show(this, title, body, sc)
                         }
                         result.success(true)

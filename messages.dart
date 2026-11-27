@@ -123,6 +123,7 @@ class _MessagesPageState extends State<MessagesPage> {
   void _onState() {
     if (!mounted) return;
     if (widget.embedded) S.i.messagesOpen = S.i.tab == 4;
+    if (S.i.logged && (!widget.embedded || S.i.tab == 4)) S.i.askPushForMessages();
     if (!S.i.logged) {
       if (list.isNotEmpty || loaded) {
         setState(() {
@@ -575,6 +576,7 @@ class _ChatPageState extends State<ChatPage> {
     _chipsOff = S.i.chipsHidden(widget.pid);
     _safeOff = S.i.safeHidden(widget.pid);
     S.i.chatOpen++;
+    S.i.askPushForMessages();
     name = widget.name;
     avatar = widget.avatar;
     ver = widget.ver;
